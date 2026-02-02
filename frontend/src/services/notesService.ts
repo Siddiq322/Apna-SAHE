@@ -211,33 +211,20 @@ export class NotesService {
   }
 
   /**
-   * Downloads PDF note
+   * Downloads PDF note from Cloudinary
    */
   static downloadNote(note: Note): void {
     try {
-      // Create a blob from base64 data
-      const base64Data = note.pdfUrl.split(',')[1]; // Remove data:application/pdf;base64, prefix
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
+      // For Cloudinary URLs, we can directly download
       const link = document.createElement('a');
-      link.href = url;
+      link.href = note.pdfUrl;
       link.download = note.fileName;
+      link.target = '_blank'; // Open in new tab if download fails
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
       
-      console.log('✅ PDF downloaded:', note.fileName);
+      console.log('✅ PDF download initiated:', note.fileName);
     } catch (error: any) {
       console.error('❌ Error downloading PDF:', error);
       throw error;
@@ -249,7 +236,7 @@ export class NotesService {
    */
   static viewNote(note: Note): void {
     try {
-      // Open base64 PDF in new window
+      // Open Cloudinary PDF URL in new window
       const newWindow = window.open();
       if (newWindow) {
         newWindow.document.write(`
