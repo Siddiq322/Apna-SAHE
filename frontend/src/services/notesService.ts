@@ -81,6 +81,12 @@ export class NotesService {
           title
         });
         console.log('✅ PDF uploaded to Cloudinary successfully:', cloudinaryResult);
+        
+        // Double-check that we got a proper URL and not base64 data
+        if (!cloudinaryResult.secure_url || cloudinaryResult.secure_url.startsWith('data:')) {
+          throw new Error('Invalid response from Cloudinary - got base64 instead of URL');
+        }
+        
       } catch (cloudinaryError: any) {
         console.error('❌ Cloudinary upload failed:', cloudinaryError);
         throw new Error(`Cloudinary upload failed: ${cloudinaryError?.message || 'Unknown error'}. Please check your upload preset configuration.`);
