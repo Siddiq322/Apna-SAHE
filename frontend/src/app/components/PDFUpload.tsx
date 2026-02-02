@@ -127,10 +127,14 @@ export const PDFUpload = ({
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('🔍 File input triggered:', event.target.files);
     const file = event.target.files?.[0];
     if (file) {
+      console.log('📄 File selected:', { name: file.name, size: file.size, type: file.type });
+      
       // Validate file type
       if (!file.type.includes('pdf')) {
+        console.error('❌ Invalid file type:', file.type);
         setAlert({
           type: 'error',
           message: 'Please select only PDF files'
@@ -141,6 +145,7 @@ export const PDFUpload = ({
       // Validate file size (10MB limit)
       const maxSize = 10 * 1024 * 1024; // 10MB
       if (file.size > maxSize) {
+        console.error('❌ File too large:', file.size, 'bytes');
         setAlert({
           type: 'error',
           message: 'File size should not exceed 10MB'
@@ -150,6 +155,9 @@ export const PDFUpload = ({
 
       setSelectedFile(file);
       setAlert(null);
+      console.log('✅ File selected successfully');
+    } else {
+      console.log('❌ No file selected');
     }
   };
 
@@ -244,7 +252,7 @@ export const PDFUpload = ({
       setSelectedFile(null);
       
       // Reset file input
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      const fileInput = document.getElementById('fileInput') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
 
       // Call success callback
@@ -400,14 +408,14 @@ export const PDFUpload = ({
 
           {/* File Upload */}
           <div className="md:col-span-2">
-            <Label htmlFor="file">PDF File * (Max 10MB)</Label>
+            <Label htmlFor="fileInput">PDF File * (Max 10MB)</Label>
             <Input
-              id="file"
+              id="fileInput"
               type="file"
-              accept=".pdf"
+              accept=".pdf,application/pdf"
               onChange={handleFileSelect}
               disabled={isUploading}
-              className="cursor-pointer"
+              className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
             {selectedFile && (
               <div className="mt-2 p-3 bg-gray-50 rounded-lg">
