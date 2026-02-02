@@ -27,6 +27,7 @@ export class CloudinaryService {
     original_filename: string;
     bytes: number;
     format: string;
+    delete_token?: string;
   }> {
     try {
       // Validate file first
@@ -45,6 +46,8 @@ export class CloudinaryService {
       formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
       formData.append('folder', `${CLOUDINARY_CONFIG.folder}/${metadata.branch}/${metadata.semester}/${metadata.subject}`);
       formData.append('resource_type', 'raw'); // Important for PDF files
+      // Needed for client-side deletion of unsigned uploads
+      formData.append('return_delete_token', 'true');
       
       // Add context metadata
       const context = `title=${metadata.title}|branch=${metadata.branch}|semester=${metadata.semester}|subject=${metadata.subject}`;
@@ -89,7 +92,8 @@ export class CloudinaryService {
         secure_url: result.secure_url,
         original_filename: result.original_filename || file.name,
         bytes: result.bytes,
-        format: result.format || 'pdf'
+        format: result.format || 'pdf',
+        delete_token: result.delete_token
       };
 
     } catch (error: any) {
@@ -100,19 +104,37 @@ export class CloudinaryService {
   }
 
   /**
-   * Delete PDF from Cloudinary
-   * @param publicId - Public ID of the file to delete
+   * Delete an unsigned-upload asset using delete_token (client-side safe).
+   * @param token - delete_token returned from upload when return_delete_token=true
    */
-  static async deletePDF(publicId: string): Promise<void> {
+  static async deleteByToken(token: string): Promise<void> {
     try {
-      // For unsigned uploads, deletion requires server-side implementation
-      // For now, we'll log that deletion is attempted
-      console.warn('⚠️ Cloudinary deletion requires server-side implementation for unsigned uploads');
-      console.log('📝 File to delete:', publicId);
-      
-      // In production, you would call your backend API to delete the file
-      // Example: await fetch('/api/cloudinary/delete', { method: 'POST', body: { public_id: publicId }})
-      
+      if (!token) {
+        throw new Error('Cloudinary delete token is required');
+      }
+
+      const formData = new FormData();
+      formData.append('token', token);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/delete_by_token`,
+        {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error?.message || 'Cloudinary delete_by_token failed');
+      }
+
+      if (data?.result && data.result !== 'ok') {
+        throw new Error(`Cloudinary delete_by_token result: ${data.result}`);
+      }
     } catch (error: any) {
       console.error('❌ Cloudinary delete error:', error);
       throw error;
