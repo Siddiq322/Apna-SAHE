@@ -31,8 +31,13 @@ export class CloudinaryService {
     try {
       // Validate file first
       this.validatePDF(file);
+      console.log('✅ CloudinaryService: File validation passed');
 
-      console.log('📤 Starting Cloudinary upload...');
+      console.log('📤 CloudinaryService: Starting upload with config:', {
+        cloudName: CLOUDINARY_CONFIG.cloudName,
+        uploadPreset: CLOUDINARY_CONFIG.uploadPreset,
+        folder: `${CLOUDINARY_CONFIG.folder}/${metadata.branch}/${metadata.semester}/${metadata.subject}`
+      });
 
       // Create form data for upload
       const formData = new FormData();
@@ -45,6 +50,8 @@ export class CloudinaryService {
       const context = `title=${metadata.title}|branch=${metadata.branch}|semester=${metadata.semester}|subject=${metadata.subject}`;
       formData.append('context', context);
 
+      console.log('🌐 CloudinaryService: Making API call to:', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`);
+
       // Upload to Cloudinary
       const uploadResponse = await fetch(
         `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`,
@@ -54,14 +61,17 @@ export class CloudinaryService {
         }
       );
 
+      console.log('📡 CloudinaryService: Upload response status:', uploadResponse.status);
+
       if (!uploadResponse.ok) {
         const errorData = await uploadResponse.json();
+        console.error('❌ CloudinaryService: Upload failed with response:', errorData);
         throw new Error(`Cloudinary upload failed: ${errorData.error?.message || 'Unknown error'}`);
       }
 
       const result = await uploadResponse.json();
       
-      console.log('✅ PDF uploaded to Cloudinary:', result.public_id);
+      console.log('✅ CloudinaryService: Upload successful, result:', result);
       
       return {
         public_id: result.public_id,
@@ -72,7 +82,8 @@ export class CloudinaryService {
       };
 
     } catch (error: any) {
-      console.error('❌ Cloudinary upload error:', error);
+      console.error('❌ CloudinaryService: Upload error details:', error);
+      console.error('❌ CloudinaryService: Error stack:', error.stack);
       throw new Error(`Failed to upload to Cloudinary: ${error.message}`);
     }
   }

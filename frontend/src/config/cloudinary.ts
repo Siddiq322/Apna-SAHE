@@ -14,6 +14,14 @@ export const CLOUDINARY_CONFIG = {
   maxResults: 30
 };
 
+// Debug logging for production
+console.log('🔧 Cloudinary Config Loaded:', {
+  cloudName: CLOUDINARY_CONFIG.cloudName,
+  uploadPreset: CLOUDINARY_CONFIG.uploadPreset,
+  hasApiKey: !!CLOUDINARY_CONFIG.apiKey,
+  environment: import.meta.env.MODE
+});
+
 export const CLOUDINARY_URLS = {
   base: `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}`,
   upload: `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`,

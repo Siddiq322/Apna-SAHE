@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -84,8 +84,8 @@ export const PDFUpload = ({
   const [formData, setFormData] = useState({
     title: '',
     subject: '',
-    branch: '',
-    semester: '',
+    branch: userData?.branch || '',
+    semester: userData?.semester || '',
     customSubject: ''
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -96,7 +96,23 @@ export const PDFUpload = ({
     message: string;
   } | null>(null);
 
+  // Update form data when userData changes
+  useEffect(() => {
+    console.log('📊 PDFUpload: userData changed:', userData);
+    console.log('📊 PDFUpload: allowedBranches:', allowedBranches.slice(0, 5), '... (total:', allowedBranches.length, ')');
+    console.log('📊 PDFUpload: allowedSemesters:', allowedSemesters.slice(0, 5), '... (total:', allowedSemesters.length, ')');
+    
+    if (userData) {
+      setFormData(prev => ({
+        ...prev,
+        branch: userData.branch || prev.branch,
+        semester: userData.semester || prev.semester
+      }));
+    }
+  }, [userData]);
+
   const handleInputChange = (name: string, value: string) => {
+    console.log(`🔄 Form field changed: ${name} = ${value}`);
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -304,7 +320,7 @@ export const PDFUpload = ({
           <div>
             <Label htmlFor="branch">Branch *</Label>
             <Select 
-              value={formData.branch || undefined} 
+              value={formData.branch || ""} 
               onValueChange={(value) => handleInputChange('branch', value)}
               disabled={isUploading}
             >
@@ -325,7 +341,7 @@ export const PDFUpload = ({
           <div>
             <Label htmlFor="semester">Semester *</Label>
             <Select 
-              value={formData.semester || undefined} 
+              value={formData.semester || ""} 
               onValueChange={(value) => handleInputChange('semester', value)}
               disabled={isUploading}
             >
@@ -346,7 +362,7 @@ export const PDFUpload = ({
           <div>
             <Label htmlFor="subject">Subject *</Label>
             <Select 
-              value={formData.subject || undefined} 
+              value={formData.subject || ""} 
               onValueChange={(value) => handleInputChange('subject', value)}
               disabled={isUploading}
             >

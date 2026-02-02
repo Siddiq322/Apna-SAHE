@@ -16,6 +16,7 @@ import { ref, deleteObject } from 'firebase/storage';
 import { db, auth, storage } from '../config/firebase';
 import { AuthService } from './authService';
 import { CloudinaryService } from './cloudinaryService';
+import { CLOUDINARY_CONFIG } from '../config/cloudinary';
 
 export interface Note {
   id?: string;
@@ -59,11 +60,18 @@ export class NotesService {
       const { file, title, subject, branch, semester, uploaderId, uploaderName, uploaderRole } = noteData;
 
       console.log('🔍 Starting PDF upload to Cloudinary...');
+      console.log('📋 Upload data:', { title, subject, branch, semester, fileName: file.name, fileSize: file.size });
 
       // Validate file using Cloudinary service
       CloudinaryService.validatePDF(file);
+      console.log('✅ File validation passed');
 
       // Upload to Cloudinary
+      console.log('☁️ Uploading to Cloudinary with config:', {
+        cloudName: CLOUDINARY_CONFIG.cloudName,
+        uploadPreset: CLOUDINARY_CONFIG.uploadPreset
+      });
+      
       const cloudinaryResult = await CloudinaryService.uploadPDF(file, {
         branch,
         semester,
@@ -71,7 +79,7 @@ export class NotesService {
         title
       });
 
-      console.log('✅ PDF uploaded to Cloudinary successfully');
+      console.log('✅ PDF uploaded to Cloudinary successfully:', cloudinaryResult);
       console.log('🔍 Creating note metadata in Firestore...');
 
       // Create note metadata in Firestore and update user points in a transaction
