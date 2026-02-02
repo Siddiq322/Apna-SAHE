@@ -1,0 +1,66 @@
+// Firebase Storage Security Rules for Apna SAHE
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to validate VRSEC email
+    function hasValidEmail() {
+      return isAuthenticated() && 
+             request.auth.token.email.matches('.*@vrsec\\.ac\\.in$');
+    }
+    
+    // Helper function to check file type
+    function isValidFileType() {
+      return resource.contentType.matches('application/pdf.*') ||
+             request.resource.contentType.matches('application/pdf.*');
+    }
+    
+    // Helper function to check file size (10MB limit)
+    function isValidFileSize() {
+      return request.resource.size < 10 * 1024 * 1024; // 10MB
+    }
+    
+    // Rules for notes folder
+    match /notes/{allPaths=**} {
+      // Allow read for all authenticated VRSEC users
+      allow read: if isAuthenticated() && hasValidEmail();
+      
+      // Allow upload only for authenticated VRSEC users with valid PDF files
+      allow write: if isAuthenticated() && 
+                     hasValidEmail() &&
+                     isValidFileType() &&
+                     isValidFileSize();
+      
+      // Allow delete only for authenticated users (handled by backend)
+      allow delete: if isAuthenticated() && hasValidEmail();
+    }
+    
+    // Rules for profile pictures (future use)
+    match /profiles/{userId}/{allPaths=**} {
+      // Allow read for all authenticated users
+      allow read: if isAuthenticated() && hasValidEmail();
+      
+      // Allow write only by the user themselves
+      allow write: if isAuthenticated() && 
+                     hasValidEmail() &&
+                     request.auth.uid == userId &&
+                     request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+                     request.resource.contentType.matches('image/.*');
+      
+      // Allow delete by user themselves
+      allow delete: if isAuthenticated() && 
+                      hasValidEmail() &&
+                      request.auth.uid == userId;
+    }
+    
+    // Deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

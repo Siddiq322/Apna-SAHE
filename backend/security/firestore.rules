@@ -1,0 +1,125 @@
+// Firestore Security Rules for Apna SAHE
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if user is student
+    function isStudent() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to validate VRSEC email or admin email
+    function hasValidEmail() {
+      return isAuthenticated() && 
+             (request.auth.token.email.matches('.*@vrsec\\.ac\\.in$') ||
+              request.auth.token.email == 'siddiqshaik613@gmail.com');
+    }
+    
+    // Helper function to check if email is the authorized admin email
+    function isAdminEmail() {
+      return isAuthenticated() && 
+             request.auth.token.email == 'siddiqshaik613@gmail.com';
+    }
+    
+    // Helper function for Google authenticated users (any Gmail for students)
+    function isGoogleAuthenticated() {
+      return isAuthenticated() && 
+             request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      // Allow read for all authenticated users (VRSEC or Google) - includes leaderboard queries
+      allow read: if isAuthenticated();
+      
+      // Allow create for new user registration
+      // Students with VRSEC email, Google authenticated users, or admin with authorized email
+      allow create: if isAuthenticated() && 
+                      request.auth.uid == userId &&
+                      (hasValidEmail() || isGoogleAuthenticated()) &&
+                      resource == null;
+      
+      // Allow update only by the user themselves or admin
+      allow update: if (isOwner(userId) || isAdmin()) && 
+                      (hasValidEmail() || isGoogleAuthenticated());
+      
+      // Allow delete only by admin
+      allow delete: if isAdmin();
+    }
+
+    // Notes collection rules
+    match /notes/{noteId} {
+      // Allow read for all authenticated users
+      allow read: if isAuthenticated() && (hasValidEmail() || isGoogleAuthenticated());
+      
+      // Allow create by authenticated students and admins
+      allow create: if (isStudent() || isAdmin()) && 
+                      (hasValidEmail() || isGoogleAuthenticated()) &&
+                      request.resource.data.uploaderId == request.auth.uid;
+      
+      // Allow update only by note owner or admin
+      allow update: if (isOwner(resource.data.uploaderId) || isAdmin()) && 
+                      (hasValidEmail() || isGoogleAuthenticated());
+      
+      // Allow delete only by note owner or admin
+      allow delete: if (isOwner(resource.data.uploaderId) || isAdmin()) && 
+                      (hasValidEmail() || isGoogleAuthenticated());
+    }
+
+    // Events collection rules
+    match /events/{eventId} {
+      // Allow read for all authenticated users
+      allow read: if isAuthenticated() && (hasValidEmail() || isGoogleAuthenticated());
+      
+      // Allow create/update/delete only by admins
+      allow create, update, delete: if isAdmin() && (hasValidEmail() || isGoogleAuthenticated());
+    }
+
+    // Queries collection rules
+    match /queries/{queryId} {
+      // Allow read for query owner and admins
+      allow read: if (isOwner(resource.data.userId) || isAdmin()) && 
+                    (hasValidEmail() || isGoogleAuthenticated());
+      
+      // Allow create only by students
+      allow create: if isStudent() && 
+                      (hasValidEmail() || isGoogleAuthenticated()) &&
+                      request.resource.data.userId == request.auth.uid;
+      
+      // Allow update only by admins (for status updates)
+      allow update: if isAdmin() && (hasValidEmail() || isGoogleAuthenticated());
+      
+      // Allow delete by query owner or admin
+      allow delete: if (isOwner(resource.data.userId) || isAdmin()) && 
+                      (hasValidEmail() || isGoogleAuthenticated());
+    }
+
+    // Facilities collection rules
+    match /facilities/{facilityId} {
+      // Allow read for all authenticated users
+      allow read: if isAuthenticated() && (hasValidEmail() || isGoogleAuthenticated());
+      
+      // Allow create/update/delete only by admins
+      allow create, update, delete: if isAdmin() && (hasValidEmail() || isGoogleAuthenticated());
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "apna-sahe-backend",
+  "version": "1.0.0",
+  "description": "Firebase backend for Apna SAHE college portal",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --experimental-modules index.js",
+    "deploy": "firebase deploy",
+    "serve": "firebase serve"
+  },
+  "dependencies": {
+    "firebase": "^10.7.2",
+    "firebase-admin": "^12.0.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.3"
+  }
+}
