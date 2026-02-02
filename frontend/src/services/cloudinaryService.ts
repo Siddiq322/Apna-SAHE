@@ -51,17 +51,28 @@ export class CloudinaryService {
       formData.append('context', context);
 
       console.log('🌐 CloudinaryService: Making API call to:', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`);
+      console.log('🛠️ CloudinaryService: Environment check:', {
+        isDevelopment: import.meta.env.DEV,
+        isProduction: import.meta.env.PROD,
+        mode: import.meta.env.MODE,
+        baseUrl: import.meta.env.BASE_URL
+      });
 
       // Upload to Cloudinary
       const uploadResponse = await fetch(
         `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`,
         {
           method: 'POST',
-          body: formData
+          body: formData,
+          // Add headers for better compatibility
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
         }
       );
 
       console.log('📡 CloudinaryService: Upload response status:', uploadResponse.status);
+      console.log('📡 CloudinaryService: Response headers:', Object.fromEntries(uploadResponse.headers.entries()));
 
       if (!uploadResponse.ok) {
         const errorData = await uploadResponse.json();

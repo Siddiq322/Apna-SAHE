@@ -52,16 +52,23 @@ const COMMON_SUBJECTS = [
   'Operating Systems',
   'Software Engineering',
   'Machine Learning',
+  'Artificial Intelligence',
   'Web Development',
-  'Mobile Development',
-  'Digital Electronics',
+  'Mobile App Development',
+  'Computer Graphics',
+  'Digital Signal Processing',
   'Microprocessors',
-  'Communication Systems',
-  'Signal Processing',
+  'VLSI Design',
   'Control Systems',
   'Power Systems',
+  'Electronics',
+  'Communication Systems',
   'Thermodynamics',
   'Fluid Mechanics',
+  'Heat Transfer',
+  'Manufacturing Technology',
+  'Material Science',
+  'Strength of Materials',
   'Structural Analysis',
   'Concrete Technology',
   'Surveying',
@@ -131,7 +138,7 @@ export const PDFUpload = ({
         return;
       }
 
-      // Validate file size (10MB limit for base64 storage)
+      // Validate file size (10MB limit)
       const maxSize = 10 * 1024 * 1024; // 10MB
       if (file.size > maxSize) {
         setAlert({

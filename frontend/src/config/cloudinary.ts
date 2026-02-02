@@ -19,8 +19,36 @@ console.log('🔧 Cloudinary Config Loaded:', {
   cloudName: CLOUDINARY_CONFIG.cloudName,
   uploadPreset: CLOUDINARY_CONFIG.uploadPreset,
   hasApiKey: !!CLOUDINARY_CONFIG.apiKey,
-  environment: import.meta.env.MODE
+  environment: import.meta.env.MODE,
+  rawEnvVars: {
+    VITE_CLOUDINARY_CLOUD_NAME: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+    VITE_CLOUDINARY_API_KEY: import.meta.env.VITE_CLOUDINARY_API_KEY,
+    VITE_CLOUDINARY_UPLOAD_PRESET: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+  }
 });
+
+// Add a global debug function for production debugging
+if (typeof window !== 'undefined') {
+  (window as any).debugCloudinary = () => {
+    console.log('🔍 Cloudinary Debug Info:', {
+      config: CLOUDINARY_CONFIG,
+      urls: CLOUDINARY_URLS,
+      environment: {
+        NODE_ENV: import.meta.env.NODE_ENV,
+        MODE: import.meta.env.MODE,
+        DEV: import.meta.env.DEV,
+        PROD: import.meta.env.PROD,
+        BASE_URL: import.meta.env.BASE_URL
+      },
+      envVars: {
+        VITE_CLOUDINARY_CLOUD_NAME: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+        VITE_CLOUDINARY_API_KEY: import.meta.env.VITE_CLOUDINARY_API_KEY,
+        VITE_CLOUDINARY_UPLOAD_PRESET: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+      }
+    });
+    return 'Debug info logged to console';
+  };
+}
 
 export const CLOUDINARY_URLS = {
   base: `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}`,

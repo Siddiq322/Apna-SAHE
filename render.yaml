@@ -8,3 +8,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 18
+      - key: VITE_CLOUDINARY_CLOUD_NAME
+        value: dhvnt156n
+      - key: VITE_CLOUDINARY_API_KEY
+        value: 846746144382878
+      - key: VITE_CLOUDINARY_UPLOAD_PRESET
+        value: pdf_notes_preset
