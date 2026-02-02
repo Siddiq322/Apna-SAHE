@@ -1,3 +1,3 @@
 #!/usr/bin/env node
 // Redirect start file to server.js
-require('./server.js');
+import './server.js';
