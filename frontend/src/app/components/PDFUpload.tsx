@@ -338,64 +338,58 @@ export const PDFUpload = ({
           {/* Branch */}
           <div>
             <Label htmlFor="branch">Branch *</Label>
-            <Select 
+            <select 
+              id="branch"
               value={formData.branch} 
-              onValueChange={(value) => handleInputChange('branch', value)}
+              onChange={(e) => handleInputChange('branch', e.target.value)}
               disabled={isUploading}
+              className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <SelectTrigger className="w-full" id="branch-select">
-                <SelectValue placeholder="Select branch" />
-              </SelectTrigger>
-              <SelectContent className="max-h-60 overflow-y-auto z-50">
-                {BRANCHES.map(branch => (
-                  <SelectItem key={branch} value={branch}>
-                    {branch}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="">Select branch</option>
+              {BRANCHES.map(branch => (
+                <option key={branch} value={branch}>
+                  {branch}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Semester */}
           <div>
             <Label htmlFor="semester">Semester *</Label>
-            <Select 
+            <select 
+              id="semester"
               value={formData.semester} 
-              onValueChange={(value) => handleInputChange('semester', value)}
+              onChange={(e) => handleInputChange('semester', e.target.value)}
               disabled={isUploading}
+              className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <SelectTrigger className="w-full" id="semester-select">
-                <SelectValue placeholder="Select semester" />
-              </SelectTrigger>
-              <SelectContent className="max-h-60 overflow-y-auto z-50">
-                {SEMESTERS.map(sem => (
-                  <SelectItem key={sem} value={sem}>
-                    Semester {sem}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="">Select semester</option>
+              {SEMESTERS.map(sem => (
+                <option key={sem} value={sem}>
+                  Semester {sem}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Subject */}
           <div>
             <Label htmlFor="subject">Subject *</Label>
-            <Select 
+            <select 
+              id="subject"
               value={formData.subject} 
-              onValueChange={(value) => handleInputChange('subject', value)}
+              onChange={(e) => handleInputChange('subject', e.target.value)}
               disabled={isUploading}
+              className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <SelectTrigger className="w-full" id="subject-select">
-                <SelectValue placeholder="Select subject" />
-              </SelectTrigger>
-              <SelectContent className="max-h-60 overflow-y-auto z-50">
-                {COMMON_SUBJECTS.map(subject => (
-                  <SelectItem key={subject} value={subject}>
-                    {subject}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="">Select subject</option>
+              {COMMON_SUBJECTS.map(subject => (
+                <option key={subject} value={subject}>
+                  {subject}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Custom Subject */}
