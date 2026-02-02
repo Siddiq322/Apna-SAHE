@@ -8,6 +8,20 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 18
+      # Firebase Configuration
+      - key: VITE_FIREBASE_API_KEY
+        value: AIzaSyCyIGj3_TBDOIZSCJXfyYHMRY3L3qJf7Ko
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        value: apna-sahe.firebaseapp.com
+      - key: VITE_FIREBASE_PROJECT_ID
+        value: apna-sahe
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        value: apna-sahe.firebasestorage.app
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        value: 866717994154
+      - key: VITE_FIREBASE_APP_ID
+        value: 1:866717994154:web:bd65f39b92d6ff1ff68297
+      # Cloudinary Configuration
       - key: VITE_CLOUDINARY_CLOUD_NAME
         value: dhvnt156n
       - key: VITE_CLOUDINARY_API_KEY
