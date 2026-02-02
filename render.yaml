@@ -10,7 +10,7 @@ services:
         value: 18
       # Firebase Configuration
       - key: VITE_FIREBASE_API_KEY
-        value: AIzaSyCyIGj3_TBDOIZSCJXfyYHMRY3L3qJf7Ko
+        value: AIzaSyBZiQorEJLXr5Blr715vq1THS0sejxZsy0
       - key: VITE_FIREBASE_AUTH_DOMAIN
         value: apna-sahe.firebaseapp.com
       - key: VITE_FIREBASE_PROJECT_ID
@@ -18,9 +18,11 @@ services:
       - key: VITE_FIREBASE_STORAGE_BUCKET
         value: apna-sahe.firebasestorage.app
       - key: VITE_FIREBASE_MESSAGING_SENDER_ID
-        value: 866717994154
+        value: 466480302565
       - key: VITE_FIREBASE_APP_ID
-        value: 1:866717994154:web:bd65f39b92d6ff1ff68297
+        value: 1:466480302565:web:e3c4082453a320957e470c
+      - key: VITE_FIREBASE_MEASUREMENT_ID
+        value: G-W72QTJENL1
       # Cloudinary Configuration
       - key: VITE_CLOUDINARY_CLOUD_NAME
         value: dhvnt156n
