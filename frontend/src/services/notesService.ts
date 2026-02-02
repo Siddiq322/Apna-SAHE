@@ -26,7 +26,6 @@ export interface Note {
   semester: string;
   pdfUrl: string;
   cloudinaryPublicId?: string; // New field for Cloudinary
-  cloudinaryDeleteToken?: string; // Allows client-side deletion for unsigned uploads
   fileName: string;
   fileSize: number;
   uploadedByName: string;
@@ -106,7 +105,6 @@ export class NotesService {
           semester: semester,
           pdfUrl: cloudinaryResult.secure_url, // Cloudinary URL instead of base64
           cloudinaryPublicId: cloudinaryResult.public_id, // Store for deletion if needed
-          cloudinaryDeleteToken: (cloudinaryResult as any).delete_token,
           fileName: cloudinaryResult.original_filename || file.name,
           fileSize: cloudinaryResult.bytes || file.size,
           uploadedByName: uploaderName,
@@ -342,6 +340,18 @@ export class NotesService {
         console.warn('⚠️ Could not extract storage path:', pathError);
       }
 
+      // 0. Delete the actual PDF file from Cloudinary first (so we truly free space)
+      if (noteDoc.cloudinaryPublicId) {
+        try {
+          const idToken = await currentUser.getIdToken();
+          await CloudinaryService.deleteNoteFile(noteId, idToken);
+          console.log('🗑️ PDF file deleted from Cloudinary successfully');
+        } catch (cloudinaryError: any) {
+          console.error('❌ Failed to delete PDF from Cloudinary:', cloudinaryError);
+          throw new Error(cloudinaryError?.message || 'Failed to delete file from Cloudinary');
+        }
+      }
+
       await runTransaction(db, async (transaction) => {
         // IMPORTANT: All reads must happen BEFORE any writes in Firebase transactions
         
@@ -370,22 +380,8 @@ export class NotesService {
         }
       });
 
-      // 3. Delete the actual PDF file from Cloudinary (if it has cloudinaryPublicId)
-      if (noteDoc.cloudinaryDeleteToken) {
-        try {
-          await CloudinaryService.deleteByToken(noteDoc.cloudinaryDeleteToken);
-          console.log('🗑️ PDF file deleted from Cloudinary successfully (delete_token)');
-        } catch (storageError: any) {
-          console.warn('⚠️ Could not delete file from Cloudinary:', storageError.message);
-          // Continue execution - file metadata is already deleted from Firestore
-        }
-      } else if (noteDoc.cloudinaryPublicId) {
-        // We cannot delete unsigned uploads by publicId from the browser without a backend.
-        console.warn(
-          '⚠️ Note deleted from Firestore, but Cloudinary file was NOT deleted (missing delete_token).',
-          { publicId: noteDoc.cloudinaryPublicId },
-        );
-      } else if (storagePath) {
+      // 3. Legacy support for Firebase Storage files
+      if (storagePath) {
         // Legacy support for Firebase Storage files
         try {
           const fileRef = ref(storage, storagePath);
