@@ -15,28 +15,57 @@ function initFirebaseAdmin() {
 
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (json) {
-    const serviceAccount = JSON.parse(json);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    return;
+    try {
+      // Normalize newlines in private_key for proper JSON parsing
+      const normalizedJson = json.replace(/\\n/g, '\n');
+      const serviceAccount = JSON.parse(normalizedJson);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+      console.log('✅ Firebase Admin initialized with service account');
+      return;
+    } catch (err) {
+      console.error('❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:', err.message);
+      throw new Error('Invalid Firebase service account JSON');
+    }
   }
 
   // Fallback: uses GOOGLE_APPLICATION_CREDENTIALS if provided
-  admin.initializeApp();
+  try {
+    admin.initializeApp();
+    console.log('✅ Firebase Admin initialized with default credentials');
+  } catch (err) {
+    console.error('❌ Firebase Admin init failed:', err.message);
+    throw err;
+  }
 }
 
 function initCloudinary() {
+  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
+  
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+    console.error('❌ Missing Cloudinary environment variables');
+    throw new Error('CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET are required');
+  }
+
   cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
+    cloud_name: CLOUDINARY_CLOUD_NAME,
+    api_key: CLOUDINARY_API_KEY,
+    api_secret: CLOUDINARY_API_SECRET,
     secure: true,
   });
+  
+  console.log('✅ Cloudinary configured with cloud:', CLOUDINARY_CLOUD_NAME);
 }
 
-initFirebaseAdmin();
-initCloudinary();
+try {
+  initFirebaseAdmin();
+  initCloudinary();
+  console.log('✅ All services initialized successfully');
+} catch (err) {
+  console.error('❌ Startup failed:', err.message);
+  process.exit(1);
+}
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true });

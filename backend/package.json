@@ -2,7 +2,7 @@
   "name": "apna-sahe-backend",
   "version": "1.0.0",
   "description": "Firebase backend for Apna SAHE college portal",
-  "main": "index.js",
+  "main": "server.js",
   "type": "module",
   "scripts": {
     "dev": "node --experimental-modules index.js",
