@@ -3,7 +3,7 @@ services:
     name: apna-sahe-frontend
     runtime: static
     buildCommand: npm run build
-    staticPublishPath: frontend/dist
+    staticPublishPath: dist
     envVars:
       - key: NODE_VERSION
         value: 18
