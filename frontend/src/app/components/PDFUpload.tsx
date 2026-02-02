@@ -343,10 +343,10 @@ export const PDFUpload = ({
               onValueChange={(value) => handleInputChange('branch', value)}
               disabled={isUploading}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" id="branch-select">
                 <SelectValue placeholder="Select branch" />
               </SelectTrigger>
-              <SelectContent className="max-h-60 overflow-y-auto">
+              <SelectContent className="max-h-60 overflow-y-auto z-50">
                 {BRANCHES.map(branch => (
                   <SelectItem key={branch} value={branch}>
                     {branch}
@@ -364,10 +364,10 @@ export const PDFUpload = ({
               onValueChange={(value) => handleInputChange('semester', value)}
               disabled={isUploading}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" id="semester-select">
                 <SelectValue placeholder="Select semester" />
               </SelectTrigger>
-              <SelectContent className="max-h-60 overflow-y-auto">
+              <SelectContent className="max-h-60 overflow-y-auto z-50">
                 {SEMESTERS.map(sem => (
                   <SelectItem key={sem} value={sem}>
                     Semester {sem}
@@ -385,10 +385,10 @@ export const PDFUpload = ({
               onValueChange={(value) => handleInputChange('subject', value)}
               disabled={isUploading}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" id="subject-select">
                 <SelectValue placeholder="Select subject" />
               </SelectTrigger>
-              <SelectContent className="max-h-60 overflow-y-auto">
+              <SelectContent className="max-h-60 overflow-y-auto z-50">
                 {COMMON_SUBJECTS.map(subject => (
                   <SelectItem key={subject} value={subject}>
                     {subject}
