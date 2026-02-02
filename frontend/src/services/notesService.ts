@@ -72,14 +72,19 @@ export class NotesService {
         uploadPreset: CLOUDINARY_CONFIG.uploadPreset
       });
       
-      const cloudinaryResult = await CloudinaryService.uploadPDF(file, {
-        branch,
-        semester,
-        subject,
-        title
-      });
-
-      console.log('✅ PDF uploaded to Cloudinary successfully:', cloudinaryResult);
+      let cloudinaryResult;
+      try {
+        cloudinaryResult = await CloudinaryService.uploadPDF(file, {
+          branch,
+          semester,
+          subject,
+          title
+        });
+        console.log('✅ PDF uploaded to Cloudinary successfully:', cloudinaryResult);
+      } catch (cloudinaryError) {
+        console.error('❌ Cloudinary upload failed:', cloudinaryError);
+        throw new Error(`Cloudinary upload failed: ${cloudinaryError.message}. Please check your upload preset configuration.`);
+      }
       console.log('🔍 Creating note metadata in Firestore...');
       console.log('🔍 pdfUrl that will be stored:', cloudinaryResult.secure_url);
       console.log('🔍 pdfUrl length:', cloudinaryResult.secure_url.length);
