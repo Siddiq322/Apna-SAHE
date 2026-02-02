@@ -91,8 +91,8 @@ export const PDFUpload = ({
   const [formData, setFormData] = useState({
     title: '',
     subject: '',
-    branch: userData?.branch || '',
-    semester: userData?.semester || '',
+    branch: '',
+    semester: '',
     customSubject: ''
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -105,15 +105,16 @@ export const PDFUpload = ({
 
   // Update form data when userData changes
   useEffect(() => {
-    console.log('📊 PDFUpload: userData changed:', userData);
-    console.log('📊 PDFUpload: allowedBranches:', allowedBranches.slice(0, 5), '... (total:', allowedBranches.length, ')');
-    console.log('📊 PDFUpload: allowedSemesters:', allowedSemesters.slice(0, 5), '... (total:', allowedSemesters.length, ')');
-    
-    if (userData) {
+    if (userData?.branch && !formData.branch) {
       setFormData(prev => ({
         ...prev,
-        branch: userData.branch || prev.branch,
-        semester: userData.semester || prev.semester
+        branch: userData.branch
+      }));
+    }
+    if (userData?.semester && !formData.semester) {
+      setFormData(prev => ({
+        ...prev,
+        semester: userData.semester
       }));
     }
   }, [userData]);
@@ -335,15 +336,15 @@ export const PDFUpload = ({
           <div>
             <Label htmlFor="branch">Branch *</Label>
             <Select 
-              value={formData.branch || ""} 
+              value={formData.branch} 
               onValueChange={(value) => handleInputChange('branch', value)}
               disabled={isUploading}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select branch" />
               </SelectTrigger>
-              <SelectContent>
-                {allowedBranches.map(branch => (
+              <SelectContent className="max-h-60 overflow-y-auto">
+                {BRANCHES.map(branch => (
                   <SelectItem key={branch} value={branch}>
                     {branch}
                   </SelectItem>
@@ -356,15 +357,15 @@ export const PDFUpload = ({
           <div>
             <Label htmlFor="semester">Semester *</Label>
             <Select 
-              value={formData.semester || ""} 
+              value={formData.semester} 
               onValueChange={(value) => handleInputChange('semester', value)}
               disabled={isUploading}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select semester" />
               </SelectTrigger>
-              <SelectContent>
-                {allowedSemesters.map(sem => (
+              <SelectContent className="max-h-60 overflow-y-auto">
+                {SEMESTERS.map(sem => (
                   <SelectItem key={sem} value={sem}>
                     Semester {sem}
                   </SelectItem>
@@ -377,14 +378,14 @@ export const PDFUpload = ({
           <div>
             <Label htmlFor="subject">Subject *</Label>
             <Select 
-              value={formData.subject || ""} 
+              value={formData.subject} 
               onValueChange={(value) => handleInputChange('subject', value)}
               disabled={isUploading}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select subject" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-60 overflow-y-auto">
                 {COMMON_SUBJECTS.map(subject => (
                   <SelectItem key={subject} value={subject}>
                     {subject}
