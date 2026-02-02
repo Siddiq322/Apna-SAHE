@@ -16,6 +16,10 @@ function initFirebaseAdmin() {
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (json) {
     try {
+      console.log('🔍 Firebase JSON length:', json.length);
+      console.log('🔍 First 100 chars:', json.substring(0, 100));
+      console.log('🔍 Last 100 chars:', json.substring(json.length - 100));
+      
       // Normalize newlines in private_key for proper JSON parsing
       const normalizedJson = json.replace(/\\n/g, '\n');
       const serviceAccount = JSON.parse(normalizedJson);
@@ -26,6 +30,8 @@ function initFirebaseAdmin() {
       return;
     } catch (err) {
       console.error('❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:', err.message);
+      console.error('❌ Error details:', err);
+      console.error('❌ JSON preview (chars 160-180):', json.substring(160, 180));
       throw new Error('Invalid Firebase service account JSON');
     }
   }
