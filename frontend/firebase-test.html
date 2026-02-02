@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Test</title>
+</head>
+<body>
+    <h1>Firebase Test</h1>
+    <div id="result"></div>
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        import { getFirestore } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCyIGj3_TBDOIZSCJXfyYHMRY3L3qJf7Ko",
+            authDomain: "apna-sahe.firebaseapp.com",
+            projectId: "apna-sahe",
+            storageBucket: "apna-sahe.firebasestorage.app",
+            messagingSenderId: "866717994154",
+            appId: "1:866717994154:web:bd65f39b92d6ff1ff68297"
+        };
+
+        try {
+            // Initialize Firebase
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            
+            document.getElementById('result').innerHTML = '✅ Firebase initialized successfully!<br>Project: ' + firebaseConfig.projectId;
+            console.log('Firebase initialized successfully');
+            
+        } catch (error) {
+            document.getElementById('result').innerHTML = '❌ Error: ' + error.message;
+            console.error('Firebase error:', error);
+        }
+    </script>
+</body>
+</html>
