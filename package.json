@@ -4,12 +4,6 @@
   "version": "1.0.0",
   "scripts": {
     "build": "npm --prefix frontend ci && npm --prefix frontend run build",
-    "dev": "npm --prefix frontend run dev",
-    "lint": "npm --prefix frontend run lint --if-present"
-  }
-  "pnpm": {
-    "overrides": {
-      "vite": "6.3.5"
-    }
+    "dev": "npm --prefix frontend run dev"
   }
 }
