@@ -30,3 +30,6 @@ services:
         value: 846746144382878
       - key: VITE_CLOUDINARY_UPLOAD_PRESET
         value: pdf_notes_preset
+      # Deployment timestamp for rebuild trigger
+      - key: LAST_UPDATED
+        value: "2026-02-02-manual-deployment"
