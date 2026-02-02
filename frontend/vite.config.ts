@@ -16,7 +16,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-
+  // Explicitly set the root directory and entry point
+  root: __dirname,
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  },
+  
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })
