@@ -105,13 +105,13 @@ export const PDFUpload = ({
 
   // Update form data when userData changes
   useEffect(() => {
-    if (userData?.branch && !formData.branch) {
+    if (userData?.branch) {
       setFormData(prev => ({
         ...prev,
         branch: userData.branch
       }));
     }
-    if (userData?.semester && !formData.semester) {
+    if (userData?.semester) {
       setFormData(prev => ({
         ...prev,
         semester: userData.semester
