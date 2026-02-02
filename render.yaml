@@ -29,3 +29,7 @@ services:
         value: 846746144382878
       - key: VITE_CLOUDINARY_UPLOAD_PRESET
         value: pdf_notes_preset
+
+      # Backend API (for signed Cloudinary delete)
+      - key: VITE_API_BASE_URL
+        value: https://apna-sahe-backend.onrender.com
