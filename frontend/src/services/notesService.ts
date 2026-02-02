@@ -81,6 +81,8 @@ export class NotesService {
 
       console.log('✅ PDF uploaded to Cloudinary successfully:', cloudinaryResult);
       console.log('🔍 Creating note metadata in Firestore...');
+      console.log('🔍 pdfUrl that will be stored:', cloudinaryResult.secure_url);
+      console.log('🔍 pdfUrl length:', cloudinaryResult.secure_url.length);
 
       // Create note metadata in Firestore and update user points in a transaction
       const noteDocId = await runTransaction(db, async (transaction) => {
@@ -99,6 +101,10 @@ export class NotesService {
           uploaderId: uploaderId,
           uploadedAt: serverTimestamp()
         };
+
+        console.log('🔍 Note object before saving:', note);
+        console.log('🔍 pdfUrl in note object:', note.pdfUrl);
+        console.log('🔍 pdfUrl type:', typeof note.pdfUrl);
 
         const notesCollection = collection(db, 'notes');
         const docRef = await addDoc(notesCollection, note);
