@@ -1,3 +1,2 @@
-#!/usr/bin/env node
-// Redirect start file to server.js
+// Fallback start file - redirect to server.js
 import './server.js';
