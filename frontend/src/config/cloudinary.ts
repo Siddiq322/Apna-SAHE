@@ -11,7 +11,10 @@ export const CLOUDINARY_CONFIG = {
   resourceType: 'auto' as const,
   allowedFormats: ['pdf'],
   maxFileSize: 10000000, // 10MB in bytes
-  maxResults: 30
+  maxResults: 30,
+  // Add production-specific settings
+  signed: false, // Use unsigned uploads for simplicity
+  tags: ['apna-sahe', 'pdf-notes']
 };
 
 // Debug logging for production
@@ -20,6 +23,8 @@ console.log('🔧 Cloudinary Config Loaded:', {
   uploadPreset: CLOUDINARY_CONFIG.uploadPreset,
   hasApiKey: !!CLOUDINARY_CONFIG.apiKey,
   environment: import.meta.env.MODE,
+  isProduction: import.meta.env.PROD,
+  currentOrigin: typeof window !== 'undefined' ? window.location.origin : 'server',
   rawEnvVars: {
     VITE_CLOUDINARY_CLOUD_NAME: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
     VITE_CLOUDINARY_API_KEY: import.meta.env.VITE_CLOUDINARY_API_KEY,
