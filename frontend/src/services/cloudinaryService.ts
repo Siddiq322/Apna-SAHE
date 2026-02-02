@@ -52,10 +52,10 @@ export class CloudinaryService {
 
       console.log('🌐 CloudinaryService: Making API call to:', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`);
       console.log('🛠️ CloudinaryService: Environment check:', {
-        isDevelopment: import.meta.env.DEV,
-        isProduction: import.meta.env.PROD,
-        mode: import.meta.env.MODE,
-        baseUrl: import.meta.env.BASE_URL
+        isDevelopment: (import.meta.env?.DEV ?? false),
+        isProduction: (import.meta.env?.PROD ?? false), 
+        mode: (import.meta.env?.MODE ?? 'development'),
+        baseUrl: (import.meta.env?.BASE_URL ?? '/')
       });
 
       // Upload to Cloudinary

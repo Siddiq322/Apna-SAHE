@@ -4,15 +4,14 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Firebase configuration - using correct values directly
+// Firebase configuration - using environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyBZiQorEJLXr5Blr715vq1THS0sejxZsy0",
-  authDomain: "apna-sahe.firebaseapp.com",
-  projectId: "apna-sahe",
-  storageBucket: "apna-sahe.firebasestorage.app",
-  messagingSenderId: "466480302565",
-  appId: "1:466480302565:web:e3c4082453a320957e470c",
-  measurementId: "G-W72QTJENL1"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCyIGj3_TBDOIZSCJXfyYHMRY3L3qJf7Ko",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "apna-sahe.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "apna-sahe",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "apna-sahe.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "866717994154",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:866717994154:web:bd65f39b92d6ff1ff68297"
 };
 
 // Initialize Firebase

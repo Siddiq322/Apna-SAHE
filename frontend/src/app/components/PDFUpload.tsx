@@ -246,15 +246,18 @@ export const PDFUpload = ({
       setFormData({
         title: '',
         subject: '',
-        branch: '',
-        semester: '',
+        branch: userData?.branch || '',
+        semester: userData?.semester || '',
         customSubject: ''
       });
       setSelectedFile(null);
       
       // Reset file input
       const fileInput = document.getElementById('fileInput') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
+      if (fileInput) {
+        fileInput.value = '';
+        fileInput.files = null;
+      }
 
       // Call success callback
       if (onUploadSuccess) {

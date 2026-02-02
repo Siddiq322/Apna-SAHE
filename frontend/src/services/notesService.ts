@@ -81,9 +81,9 @@ export class NotesService {
           title
         });
         console.log('✅ PDF uploaded to Cloudinary successfully:', cloudinaryResult);
-      } catch (cloudinaryError) {
+      } catch (cloudinaryError: any) {
         console.error('❌ Cloudinary upload failed:', cloudinaryError);
-        throw new Error(`Cloudinary upload failed: ${cloudinaryError.message}. Please check your upload preset configuration.`);
+        throw new Error(`Cloudinary upload failed: ${cloudinaryError?.message || 'Unknown error'}. Please check your upload preset configuration.`);
       }
       console.log('🔍 Creating note metadata in Firestore...');
       console.log('🔍 pdfUrl that will be stored:', cloudinaryResult.secure_url);

@@ -34,11 +34,11 @@ if (typeof window !== 'undefined') {
       config: CLOUDINARY_CONFIG,
       urls: CLOUDINARY_URLS,
       environment: {
-        NODE_ENV: import.meta.env.NODE_ENV,
-        MODE: import.meta.env.MODE,
-        DEV: import.meta.env.DEV,
-        PROD: import.meta.env.PROD,
-        BASE_URL: import.meta.env.BASE_URL
+        NODE_ENV: import.meta.env.NODE_ENV || 'development',
+        MODE: import.meta.env.MODE || 'development',
+        DEV: import.meta.env.DEV || false,
+        PROD: import.meta.env.PROD || false,
+        BASE_URL: import.meta.env.BASE_URL || '/'
       },
       envVars: {
         VITE_CLOUDINARY_CLOUD_NAME: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
