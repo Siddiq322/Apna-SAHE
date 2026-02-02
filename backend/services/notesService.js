@@ -23,6 +23,10 @@ import { AuthService } from './authService.js';
 
 /**
  * Notes service for managing PDF notes with Firebase Storage and Firestore
+ * 
+ * NOTE: Frontend has been upgraded to use Cloudinary for better storage (25GB vs 5GB).
+ * This backend service is kept for legacy support and server-side operations if needed.
+ * For new implementations, consider using the frontend Cloudinary integration.
  */
 export class NotesService {
   
