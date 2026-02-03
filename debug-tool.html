@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Firebase & Notes</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .note { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+        .url { word-break: break-all; font-size: 12px; color: #666; }
+        button { margin: 5px; padding: 5px 10px; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>PDF Notes Debug Tool</h1>
+    
+    <div id="auth-status">Checking authentication...</div>
+    
+    <button onclick="testFirebaseConnection()">Test Firebase Connection</button>
+    <button onclick="loadNotes()">Load All Notes</button>
+    <button onclick="testUpload()">Test Upload</button>
+    
+    <div id="results"></div>
+    
+    <h2>Test File Upload</h2>
+    <input type="file" id="fileInput" accept=".pdf">
+    <button onclick="uploadTestFile()">Upload Test PDF</button>
+    
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js';
+        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js';
+        
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZiQorEJLXr5Blr715vq1THS0sejxZsy0",
+            authDomain: "apna-sahe.firebaseapp.com", 
+            projectId: "apna-sahe",
+            storageBucket: "apna-sahe.firebasestorage.app",
+            messagingSenderId: "466480302565",
+            appId: "1:466480302565:web:e3c4082453a320957e470c"
+        };
+        
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+        
+        // Global functions
+        window.testFirebaseConnection = function() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h3>Firebase Connection Test</h3>';
+            
+            try {
+                results.innerHTML += '<p class="success">✅ Firebase initialized successfully</p>';
+                results.innerHTML += `<p>Auth: ${auth ? 'Initialized' : 'Failed'}</p>`;
+                results.innerHTML += `<p>Firestore: ${db ? 'Initialized' : 'Failed'}</p>`;
+                results.innerHTML += `<p>Storage: ${storage ? 'Initialized' : 'Failed'}</p>`;
+                
+                // Test storage specifically
+                try {
+                    const testRef = ref(storage, 'test.txt');
+                    results.innerHTML += '<p class="success">✅ Storage reference created successfully</p>';
+                } catch (storageError) {
+                    results.innerHTML += `<p class="error">❌ Storage error: ${storageError.message}</p>`;
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<p class="error">❌ Firebase error: ${error.message}</p>`;
+            }
+        };
+        
+        window.loadNotes = async function() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h3>Loading Notes...</h3>';
+            
+            try {
+                const notesCollection = collection(db, 'notes');
+                const snapshot = await getDocs(notesCollection);
+                
+                results.innerHTML += `<p class="success">Found ${snapshot.size} notes</p>`;
+                
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const noteHtml = `
+                        <div class="note">
+                            <h4>${data.title}</h4>
+                            <p><strong>Subject:</strong> ${data.subject}</p>
+                            <p><strong>Branch:</strong> ${data.branch}</p>
+                            <p><strong>File:</strong> ${data.fileName}</p>
+                            <p><strong>URL Type:</strong> ${data.pdfUrl ? (data.pdfUrl.includes('cloudinary') ? 'Cloudinary (Legacy)' : data.pdfUrl.includes('firebase') ? 'Firebase Storage' : 'Unknown') : 'Missing URL'}</p>
+                            <div class="url"><strong>URL:</strong> ${data.pdfUrl || 'No URL'}</div>
+                            <button onclick="testUrl('${data.pdfUrl}')">Test URL</button>
+                            <button onclick="window.open('${data.pdfUrl}', '_blank')">Open URL</button>
+                        </div>
+                    `;
+                    results.innerHTML += noteHtml;
+                });
+                
+                if (snapshot.size === 0) {
+                    results.innerHTML += '<p>No notes found in database</p>';
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<p class="error">❌ Error loading notes: ${error.message}</p>`;
+            }
+        };
+        
+        window.testUrl = async function(url) {
+            if (!url) {
+                alert('No URL to test');
+                return;
+            }
+            
+            try {
+                const response = await fetch(url, { method: 'HEAD' });
+                alert(`URL Status: ${response.status} ${response.statusText}`);
+            } catch (error) {
+                alert(`URL Error: ${error.message}`);
+            }
+        };
+        
+        window.uploadTestFile = async function() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a PDF file');
+                return;
+            }
+            
+            const results = document.getElementById('results');
+            results.innerHTML = '<h3>Testing File Upload...</h3>';
+            
+            try {
+                // Test Firebase Storage upload
+                const timestamp = Date.now();
+                const fileName = `test_upload_${timestamp}.pdf`;
+                const filePath = `notes/test/${fileName}`;
+                
+                results.innerHTML += '<p>Creating storage reference...</p>';
+                const storageRef = ref(storage, filePath);
+                
+                results.innerHTML += '<p>Uploading file...</p>';
+                const snapshot = await uploadBytes(storageRef, file);
+                
+                results.innerHTML += '<p class="success">✅ File uploaded successfully!</p>';
+                
+                results.innerHTML += '<p>Getting download URL...</p>';
+                const downloadURL = await getDownloadURL(snapshot.ref);
+                
+                results.innerHTML += `<p class="success">✅ Download URL obtained!</p>`;
+                results.innerHTML += `<div class="url"><strong>Download URL:</strong> ${downloadURL}</div>`;
+                results.innerHTML += `<button onclick="window.open('${downloadURL}', '_blank')">Test Download URL</button>`;
+                
+            } catch (error) {
+                results.innerHTML += `<p class="error">❌ Upload error: ${error.message}</p>`;
+                console.error('Upload error:', error);
+            }
+        };
+        
+        // Auth state listener
+        onAuthStateChanged(auth, (user) => {
+            const authStatus = document.getElementById('auth-status');
+            if (user) {
+                authStatus.innerHTML = `<p class="success">✅ Authenticated as: ${user.email}</p>`;
+            } else {
+                authStatus.innerHTML = `<p class="error">❌ Not authenticated</p>`;
+                // Auto-login for testing
+                signInWithEmailAndPassword(auth, 'siddiqshaik613@gmail.com', 'password123')
+                    .then(() => {
+                        authStatus.innerHTML = `<p class="success">✅ Auto-logged in as admin</p>`;
+                    })
+                    .catch((error) => {
+                        authStatus.innerHTML = `<p class="error">❌ Auto-login failed: ${error.message}</p>`;
+                    });
+            }
+        });
+        
+    </script>
+</body>
+</html>

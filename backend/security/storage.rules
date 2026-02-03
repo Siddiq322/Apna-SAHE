@@ -8,13 +8,7 @@ service firebase.storage {
       return request.auth != null;
     }
     
-    // Helper function to validate VRSEC email
-    function hasValidEmail() {
-      return isAuthenticated() && 
-             request.auth.token.email.matches('.*@vrsec\\.ac\\.in$');
-    }
-    
-    // Helper function to check file type
+    // Helper function to validate file type
     function isValidFileType() {
       return resource.contentType.matches('application/pdf.*') ||
              request.resource.contentType.matches('application/pdf.*');
@@ -27,23 +21,22 @@ service firebase.storage {
     
     // Rules for notes folder
     match /notes/{allPaths=**} {
-      // Allow read for all authenticated VRSEC users
-      allow read: if isAuthenticated() && hasValidEmail();
+      // Allow read for all authenticated users (removing domain restriction)
+      allow read: if isAuthenticated();
       
-      // Allow upload only for authenticated VRSEC users with valid PDF files
+      // Allow upload only for authenticated users with valid PDF files
       allow write: if isAuthenticated() && 
-                     hasValidEmail() &&
                      isValidFileType() &&
                      isValidFileSize();
       
       // Allow delete only for authenticated users (handled by backend)
-      allow delete: if isAuthenticated() && hasValidEmail();
+      allow delete: if isAuthenticated();
     }
     
     // Rules for profile pictures (future use)
     match /profiles/{userId}/{allPaths=**} {
       // Allow read for all authenticated users
-      allow read: if isAuthenticated() && hasValidEmail();
+      allow read: if isAuthenticated();
       
       // Allow write only by the user themselves
       allow write: if isAuthenticated() && 

@@ -227,18 +227,40 @@ export class NotesService {
     try {
       console.log('📥 Attempting to download PDF:', note.fileName);
       console.log('📥 Download URL:', note.pdfUrl);
+      console.log('📥 Note data:', note);
       
+      if (!note.pdfUrl) {
+        alert('PDF URL is missing from note data. This note may be corrupted.');
+        throw new Error('PDF URL is missing from note data');
+      }
+      
+      // Handle different URL types
+      if (note.pdfUrl.includes('cloudinary.com')) {
+        alert('⚠️ This note uses old Cloudinary storage and may not be accessible.\nPlease contact admin to re-upload this file.');
+        console.warn('⚠️ Attempting to access legacy Cloudinary URL:', note.pdfUrl);
+      }
+      
+      // Try direct download first
       const link = document.createElement('a');
       link.href = note.pdfUrl;
       link.download = note.fileName;
       link.target = '_blank'; // Open in new tab if download fails
+      
+      // Add error handling for the link
+      link.onerror = () => {
+        console.error('❌ Direct download failed');
+        alert(`Download failed. The PDF may no longer be available.\nURL: ${note.pdfUrl}`);
+      };
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
       console.log('✅ PDF download initiated:', note.fileName);
+      
     } catch (error: any) {
       console.error('❌ Error downloading PDF:', error);
+      alert(`Download failed: ${error.message}`);
       throw error;
     }
   }
@@ -250,56 +272,33 @@ export class NotesService {
     try {
       console.log('👁️ Attempting to view PDF:', note.fileName);
       console.log('👁️ PDF URL:', note.pdfUrl);
+      console.log('👁️ Note data:', note);
       
-      // Open PDF in new window
-      const newWindow = window.open();
-      if (newWindow) {
-        newWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>${note.title}</title>
-              <style>
-                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #f5f5f5; }
-                .container { max-width: 100%; height: calc(100vh - 40px); background: white; border-radius: 8px; overflow: hidden; }
-                iframe { width: 100%; height: 100%; border: none; }
-                .error { color: #e74c3c; margin: 20px; text-align: center; }
-                .loading { color: #3498db; margin: 20px; text-align: center; }
-                .controls { padding: 10px; background: #34495e; color: white; text-align: center; }
-                button { margin: 5px; padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
-                button:hover { background: #2980b9; }
-              </style>
-            </head>
-            <body>
-              <div class="controls">
-                <strong>${note.title}</strong>
-                <button onclick="window.open('${note.pdfUrl}', '_blank')">Download</button>
-              </div>
-              <div class="container">
-                <div class="loading" id="loading">Loading PDF...</div>
-                <iframe id="pdfFrame" src="${note.pdfUrl}" style="display:none;" 
-                  onload="document.getElementById('loading').style.display='none'; this.style.display='block';"
-                  onerror="document.getElementById('loading').style.display='none'; document.getElementById('error').style.display='block';">
-                </iframe>
-                <div class="error" id="error" style="display:none;">
-                  <h3>Failed to load PDF</h3>
-                  <p>The PDF could not be displayed in this browser.</p>
-                  <button onclick="window.open('${note.pdfUrl}', '_blank')">Open in New Tab</button>
-                  <button onclick="window.location.href='${note.pdfUrl}'">Direct Download</button>
-                </div>
-              </div>
-            </body>
-          </html>
-        `);
-        newWindow.document.close();
-      } else {
-        // Fallback: direct navigation
-        window.open(note.pdfUrl, '_blank');
+      if (!note.pdfUrl) {
+        alert('PDF URL is missing from note data. This note may be corrupted.');
+        throw new Error('PDF URL is missing from note data');
+      }
+      
+      // Handle different URL types
+      if (note.pdfUrl.includes('cloudinary.com')) {
+        alert('⚠️ This note uses old Cloudinary storage and may not be accessible.\nTrying to open anyway...');
+        console.warn('⚠️ Attempting to access legacy Cloudinary URL:', note.pdfUrl);
+      }
+      
+      // Simple approach: just open the URL directly
+      const newWindow = window.open(note.pdfUrl, '_blank');
+      
+      if (!newWindow) {
+        // Popup blocked, try alternative
+        alert('Popup blocked. Trying alternative method...');
+        window.location.href = note.pdfUrl;
       }
       
       console.log('✅ PDF viewer opened for:', note.fileName);
+      
     } catch (error: any) {
       console.error('❌ Error viewing PDF:', error);
+      alert(`View failed: ${error.message}`);
       throw error;
     }
   }
