@@ -240,29 +240,102 @@ export class NotesService {
         console.warn('⚠️ Attempting to access legacy Cloudinary URL:', note.pdfUrl);
       }
       
-      // Try direct download first
-      const link = document.createElement('a');
-      link.href = note.pdfUrl;
-      link.download = note.fileName;
-      link.target = '_blank'; // Open in new tab if download fails
-      
-      // Add error handling for the link
-      link.onerror = () => {
-        console.error('❌ Direct download failed');
-        alert(`Download failed. The PDF may no longer be available.\nURL: ${note.pdfUrl}`);
-      };
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      console.log('✅ PDF download initiated:', note.fileName);
+      // For Firebase Storage URLs, try multiple approaches
+      if (note.pdfUrl.includes('firebasestorage.googleapis.com')) {
+        this.downloadFirebaseStorageFile(note);
+      } else {
+        // Direct download for other URLs
+        this.createDownloadLink(note.pdfUrl, note.fileName);
+      }
       
     } catch (error: any) {
       console.error('❌ Error downloading PDF:', error);
       alert(`Download failed: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Handle Firebase Storage file downloads with multiple URL formats
+   */
+  private static downloadFirebaseStorageFile(note: Note): void {
+    // Try different URL formats for Firebase Storage
+    const originalUrl = note.pdfUrl;
+    
+    // Convert to public URL if token is present
+    let publicUrl = originalUrl;
+    if (originalUrl.includes('token=')) {
+      // Remove the token parameter to make it publicly accessible
+      publicUrl = originalUrl.split('&token=')[0].split('?token=')[0];
+      console.log('🔗 Trying public URL without token:', publicUrl);
+    }
+    
+    // Try the public URL first, fallback to original
+    const urlsToTry = [publicUrl, originalUrl];
+    
+    console.log('🔄 Trying multiple URL formats:', urlsToTry);
+    
+    // Try each URL format
+    this.tryDownloadUrls(urlsToTry, note.fileName);
+  }
+  
+  /**
+   * Try downloading from multiple URLs
+   */
+  private static tryDownloadUrls(urls: string[], fileName: string): void {
+    const tryNextUrl = (index: number) => {
+      if (index >= urls.length) {
+        alert('All download attempts failed. The file may no longer be accessible.');
+        return;
+      }
+      
+      const url = urls[index];
+      console.log(`🔄 Trying download URL ${index + 1}:`, url);
+      
+      // Test URL accessibility first
+      fetch(url, { method: 'HEAD', mode: 'no-cors' })
+        .then(() => {
+          console.log('✅ URL accessible, attempting download');
+          this.createDownloadLink(url, fileName);
+        })
+        .catch((error) => {
+          console.warn(`❌ URL ${index + 1} failed:`, error.message);
+          
+          if (index === 0) {
+            // First attempt failed, try next
+            tryNextUrl(index + 1);
+          } else {
+            // All attempts failed, just try the direct download anyway
+            console.log('🔄 All URL tests failed, trying direct download anyway');
+            this.createDownloadLink(url, fileName);
+          }
+        });
+    };
+    
+    tryNextUrl(0);
+  }
+  
+  /**
+   * Create and trigger download link
+   */
+  private static createDownloadLink(url: string, fileName: string): void {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.target = '_blank';
+    
+    // Add error handling
+    link.onerror = () => {
+      console.error('❌ Direct download failed');
+      alert(`Download failed. Trying to open in new tab instead.\nURL: ${url}`);
+      window.open(url, '_blank');
+    };
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log('✅ PDF download initiated:', fileName);
   }
 
   /**
@@ -285,20 +358,49 @@ export class NotesService {
         console.warn('⚠️ Attempting to access legacy Cloudinary URL:', note.pdfUrl);
       }
       
+      let urlToOpen = note.pdfUrl;
+      
+      // For Firebase Storage URLs, try to use public access
+      if (note.pdfUrl.includes('firebasestorage.googleapis.com')) {
+        // Try removing authentication tokens for public access
+        if (note.pdfUrl.includes('token=')) {
+          const publicUrl = note.pdfUrl.split('&token=')[0].split('?token=')[0];
+          console.log('🔓 Trying public URL:', publicUrl);
+          urlToOpen = publicUrl;
+        }
+      }
+      
       // Simple approach: just open the URL directly
-      const newWindow = window.open(note.pdfUrl, '_blank');
+      console.log('🌐 Opening URL:', urlToOpen);
+      const newWindow = window.open(urlToOpen, '_blank');
       
       if (!newWindow) {
-        // Popup blocked, try alternative
-        alert('Popup blocked. Trying alternative method...');
-        window.location.href = note.pdfUrl;
+        // Popup blocked, show alternative
+        alert('Popup blocked! Copy this URL to view the PDF:\\n\\n' + urlToOpen);
+        
+        // Try to copy to clipboard
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(urlToOpen).then(() => {
+            console.log('📋 URL copied to clipboard');
+          });
+        }
+      } else {
+        // Set up error handling for the new window
+        newWindow.addEventListener('load', () => {
+          console.log('✅ PDF viewer opened successfully');
+        });
+        
+        newWindow.addEventListener('error', () => {
+          console.error('❌ PDF failed to load in new window');
+          alert('PDF failed to load. Try copying this URL to your browser:\\n\\n' + urlToOpen);
+        });
       }
       
       console.log('✅ PDF viewer opened for:', note.fileName);
       
     } catch (error: any) {
       console.error('❌ Error viewing PDF:', error);
-      alert(`View failed: ${error.message}`);
+      alert(`View failed: ${error.message}\\n\\nTry this URL directly:\\n${note.pdfUrl}`);
       throw error;
     }
   }

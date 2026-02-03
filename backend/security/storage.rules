@@ -1,42 +1,14 @@
-// Firebase Storage Security Rules for Apna SAHE
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Helper function to check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
+    // Allow public read access to all files (for PDF viewing)
+    // Require authentication for write/delete operations
+    match /{allPaths=**} {
+      allow read: if true;  // Public read access
+      allow write, delete: if request.auth != null;  // Authenticated write/delete
     }
-    
-    // Helper function to validate file type
-    function isValidFileType() {
-      return resource.contentType.matches('application/pdf.*') ||
-             request.resource.contentType.matches('application/pdf.*');
-    }
-    
-    // Helper function to check file size (10MB limit)
-    function isValidFileSize() {
-      return request.resource.size < 10 * 1024 * 1024; // 10MB
-    }
-    
-    // Rules for notes folder
-    match /notes/{allPaths=**} {
-      // Allow read for all authenticated users (removing domain restriction)
-      allow read: if isAuthenticated();
-      
-      // Allow upload only for authenticated users with valid PDF files
-      allow write: if isAuthenticated() && 
-                     isValidFileType() &&
-                     isValidFileSize();
-      
-      // Allow delete only for authenticated users (handled by backend)
-      allow delete: if isAuthenticated();
-    }
-    
-    // Rules for profile pictures (future use)
-    match /profiles/{userId}/{allPaths=**} {
-      // Allow read for all authenticated users
-      allow read: if isAuthenticated();
+  }
+}
       
       // Allow write only by the user themselves
       allow write: if isAuthenticated() && 

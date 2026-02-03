@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Enable Firebase Storage</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .step { background: #f0f8ff; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }
+        .warning { background: #fff3cd; border-left-color: #ffc107; }
+        .success { background: #d4edda; border-left-color: #28a745; }
+        .error { background: #f8d7da; border-left-color: #dc3545; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .url-box { background: #f8f9fa; padding: 10px; border-radius: 5px; word-break: break-all; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Enable Firebase Storage for PDF Access</h1>
+    
+    <div class="error">
+        <h3>❌ Current Issue</h3>
+        <p>Firebase Storage is not enabled in your project, preventing PDF viewing and downloading.</p>
+    </div>
+    
+    <h2>🔨 Fix Steps</h2>
+    
+    <div class="step">
+        <h3>Step 1: Enable Firebase Storage</h3>
+        <p>Click the button below to open Firebase Console Storage page:</p>
+        <button onclick="window.open('https://console.firebase.google.com/project/apna-sahe/storage', '_blank')">
+            🔗 Open Firebase Storage Console
+        </button>
+        <p>Then click <strong>"Get started"</strong> and choose <strong>"Start in production mode"</strong></p>
+    </div>
+    
+    <div class="step">
+        <h3>Step 2: Deploy Storage Rules (After enabling)</h3>
+        <p>Run this command in your backend folder:</p>
+        <code>firebase deploy --only storage</code>
+    </div>
+    
+    <div class="step">
+        <h3>Step 3: Test PDF Access</h3>
+        <p>After enabling Firebase Storage:</p>
+        <ul>
+            <li>Upload a new PDF through your app</li>
+            <li>Try viewing/downloading the new PDF</li>
+            <li>Check console logs for any remaining errors</li>
+        </ul>
+    </div>
+    
+    <h2>🧪 Alternative: Test Current PDFs</h2>
+    
+    <div class="step">
+        <p>You can also test your current PDFs to see what URLs are being generated:</p>
+        <button onclick="window.open('http://localhost:5173', '_blank')">Open Your App</button>
+        <button onclick="window.open('http://localhost:5173/debug-tool.html', '_blank')">Open Debug Tool</button>
+    </div>
+    
+    <h2>📋 Expected Results</h2>
+    
+    <div class="success">
+        <h3>✅ After Fix</h3>
+        <ul>
+            <li>New PDFs upload and generate proper Firebase Storage URLs</li>
+            <li>PDFs can be viewed and downloaded directly</li>
+            <li>Old Cloudinary PDFs will show warning messages</li>
+            <li>Console shows detailed logging for troubleshooting</li>
+        </ul>
+    </div>
+    
+    <div class="warning">
+        <h3>⚠️ Notes</h3>
+        <ul>
+            <li>Existing Cloudinary URLs may not work anymore</li>
+            <li>You may need to re-upload important PDFs</li>
+            <li>Storage rules now allow public read access for easier viewing</li>
+            <li>Authentication is still required for uploads and deletes</li>
+        </ul>
+    </div>
+    
+    <h2>🐛 Debug Information</h2>
+    
+    <div class="step">
+        <h3>Check these if PDFs still don't work:</h3>
+        <ol>
+            <li><strong>URL format:</strong> Should start with <code>https://firebasestorage.googleapis.com</code></li>
+            <li><strong>Console errors:</strong> Check browser dev tools for 403/404 errors</li>
+            <li><strong>Authentication:</strong> Make sure you're logged in when testing</li>
+            <li><strong>File size:</strong> Ensure PDFs are under 10MB limit</li>
+        </ol>
+    </div>
+    
+    <div class="url-box">
+        <strong>Quick Links:</strong><br>
+        • <a href="https://console.firebase.google.com/project/apna-sahe/storage" target="_blank">Firebase Storage Console</a><br>
+        • <a href="https://console.firebase.google.com/project/apna-sahe/firestore" target="_blank">Firestore Database</a><br>
+        • <a href="http://localhost:5173" target="_blank">Your Local App</a>
+    </div>
+    
+</body>
+</html>
