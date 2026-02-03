@@ -96,8 +96,15 @@ export class NotesService {
         storagePath = filePath;
         
       } catch (storageError: any) {
-        console.warn('⚠️ Firebase Storage failed, using base64 fallback:', storageError.message);
-        console.log('📄 Converting to base64...');
+        console.warn('⚠️ Firebase Storage failed:', storageError.message);
+        console.warn('🔄 Error details:', storageError);
+        console.log('📄 Falling back to base64 storage...');
+        
+        // Check file size before base64 conversion
+        const maxBase64Size = 1024 * 1024; // 1MB limit for base64
+        if (file.size > maxBase64Size) {
+          throw new Error(`File too large for base64 storage (${Math.round(file.size / 1024 / 1024)}MB). Enable Firebase Storage or reduce file size to under 1MB.`);
+        }
         
         // Fallback to base64 storage
         const arrayBuffer = await file.arrayBuffer();
@@ -106,7 +113,8 @@ export class NotesService {
         storagePath = undefined;
         
         console.log('✅ Base64 conversion successful');
-        alert('⚠️ Using temporary storage. For better performance, enable Firebase Storage in your project.');
+        console.log('📊 Base64 size:', Math.round(base64.length / 1024), 'KB');
+        alert('⚠️ Using temporary base64 storage due to Firebase Storage not being enabled.\n\nFor better performance and larger file support, enable Firebase Storage in your console.');
       }
 
       console.log('🔗 Final PDF URL type:', pdfUrl.includes('firebase') ? 'Firebase Storage' : 'Base64');
@@ -284,32 +292,46 @@ export class NotesService {
    */
   private static downloadBase64Pdf(base64Data: string, fileName: string): void {
     try {
-      // Create blob from base64 data
-      const byteCharacters = atob(base64Data.split(',')[1]);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      console.log('📥 Starting base64 PDF download');
+      
+      // Extract base64 data from data URL
+      const base64String = base64Data.split(',')[1];
+      if (!base64String) {
+        throw new Error('Invalid base64 data URL format');
       }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
       
-      // Create download URL
-      const url = window.URL.createObjectURL(blob);
+      // Convert base64 to binary data  
+      const binaryString = atob(base64String);
+      const bytes = new Uint8Array(binaryString.length);
       
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      // Create blob and download URL
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create download link
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
+      link.download = fileName || 'document.pdf';
+      link.style.display = 'none';
+      
+      // Add to DOM, click, and remove
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      // Clean up
-      window.URL.revokeObjectURL(url);
+      // Clean up blob URL
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 1000);
       
       console.log('✅ Base64 PDF download initiated:', fileName);
     } catch (error: any) {
       console.error('❌ Failed to download base64 PDF:', error);
-      alert(`Failed to download base64 PDF: ${error.message}`);
+      alert(`Failed to download PDF: ${error.message}\n\nThe PDF data may be corrupted.`);
     }
   }
 
@@ -402,37 +424,48 @@ export class NotesService {
   static viewNote(note: Note): void {
     try {
       console.log('👁️ Attempting to view PDF:', note.fileName);
-      console.log('👁️ PDF URL:', note.pdfUrl);
-      console.log('👁️ Note data:', note);
+      console.log('👁️ PDF URL type check:', {
+        isBase64: note.pdfUrl.startsWith('data:application/pdf;base64,'),
+        isFirebase: note.pdfUrl.includes('firebasestorage.googleapis.com'),
+        isCloudinary: note.pdfUrl.includes('cloudinary.com'),
+        urlLength: note.pdfUrl.length,
+        urlStart: note.pdfUrl.substring(0, 50)
+      });
       
       if (!note.pdfUrl) {
         alert('PDF URL is missing from note data. This note may be corrupted.');
         throw new Error('PDF URL is missing from note data');
       }
       
-      // Handle different URL types
-      if (note.pdfUrl.includes('cloudinary.com')) {
-        alert('⚠️ This note uses old Cloudinary storage and may not be accessible.\nTrying to open anyway...');
-        console.warn('⚠️ Attempting to access legacy Cloudinary URL:', note.pdfUrl);
-        window.open(note.pdfUrl, '_blank');
-      } else if (note.pdfUrl.startsWith('data:application/pdf;base64,')) {
-        // Handle base64 PDF data
-        console.log('📄 Viewing base64 PDF');
+      // Detect storage type and handle accordingly
+      if (note.pdfUrl.startsWith('data:application/pdf;base64,')) {
+        console.log('📄 Detected base64 PDF, using blob viewer');
         this.viewBase64Pdf(note);
       } else if (note.pdfUrl.includes('firebasestorage.googleapis.com')) {
-        // Handle Firebase Storage URLs
+        console.log('☁️ Detected Firebase Storage PDF');
         this.viewFirebaseStorageFile(note);
+      } else if (note.pdfUrl.includes('cloudinary.com')) {
+        console.log('⚠️ Detected legacy Cloudinary PDF');
+        alert('⚠️ This note uses old Cloudinary storage and may not be accessible.\nTrying to open anyway...');
+        window.open(note.pdfUrl, '_blank');
       } else {
-        // Unknown format, try direct view
+        console.log('🔗 Unknown URL format, trying direct open');
         window.open(note.pdfUrl, '_blank');
       }
       
-      console.log('✅ PDF viewer opened for:', note.fileName);
+      console.log('✅ PDF viewer initiated for:', note.fileName);
       
     } catch (error: any) {
       console.error('❌ Error viewing PDF:', error);
-      alert(`View failed: ${error.message}`);
-      throw error;
+      alert(`View failed: ${error.message}\n\nDetected URL type: ${note.pdfUrl.substring(0, 50)}...`);
+      
+      // Last resort: try to download instead
+      console.log('🔄 Attempting download as fallback...');
+      try {
+        this.downloadNote(note);
+      } catch (downloadError) {
+        console.error('❌ Fallback download also failed:', downloadError);
+      }
     }
   }
 
@@ -441,33 +474,126 @@ export class NotesService {
    */
   private static viewBase64Pdf(note: Note): void {
     try {
-      // Create blob URL for base64 data
-      const byteCharacters = atob(note.pdfUrl.split(',')[1]);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      console.log('📄 Creating blob URL for base64 PDF');
+      
+      // Extract base64 data from data URL
+      const base64Data = note.pdfUrl.split(',')[1];
+      if (!base64Data) {
+        throw new Error('Invalid base64 data URL format');
       }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
-      const blobUrl = window.URL.createObjectURL(blob);
       
-      // Open in new window
-      const newWindow = window.open(blobUrl, '_blank');
+      // Convert base64 to binary data
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
       
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      // Create blob and URL
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      
+      console.log('📄 Blob URL created:', blobUrl);
+      
+      // Create a proper PDF viewer window
+      const newWindow = window.open('', '_blank');
       if (!newWindow) {
-        alert('Popup blocked! The PDF is available but cannot open in new window.');
-        // Fallback: download the file
+        alert('Popup blocked! Trying alternative download method...');
         this.downloadBase64Pdf(note.pdfUrl, note.fileName);
+        return;
       }
       
-      // Clean up blob URL after a delay
+      // Write HTML with embedded PDF viewer
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${note.title} - PDF Viewer</title>
+            <style>
+              body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+              .header { background: #2c3e50; color: white; padding: 15px; text-align: center; }
+              .viewer-container { height: calc(100vh - 70px); width: 100%; }
+              iframe { width: 100%; height: 100%; border: none; }
+              .controls { background: #34495e; padding: 10px; text-align: center; }
+              button { background: #3498db; color: white; border: none; padding: 8px 16px; margin: 5px; border-radius: 4px; cursor: pointer; }
+              button:hover { background: #2980b9; }
+              .error { color: #e74c3c; padding: 20px; text-align: center; }
+              .loading { color: #3498db; padding: 20px; text-align: center; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h3>${note.title}</h3>
+              <small>Subject: ${note.subject} | Branch: ${note.branch} | Semester: ${note.semester}</small>
+            </div>
+            <div class="controls">
+              <button onclick="downloadPdf()">📥 Download PDF</button>
+              <button onclick="window.print()">🖨️ Print</button>
+              <button onclick="window.close()">❌ Close</button>
+            </div>
+            <div class="viewer-container">
+              <div class="loading" id="loading">Loading PDF...</div>
+              <iframe id="pdfViewer" src="${blobUrl}" style="display:none;" 
+                onload="hideLoading()"
+                onerror="showError()">
+              </iframe>
+              <div class="error" id="error" style="display:none;">
+                <h3>Failed to load PDF</h3>
+                <p>This browser may not support embedded PDF viewing.</p>
+                <button onclick="downloadPdf()">Download PDF Instead</button>
+              </div>
+            </div>
+            
+            <script>
+              function hideLoading() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('pdfViewer').style.display = 'block';
+                console.log('PDF loaded successfully');
+              }
+              
+              function showError() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                console.error('PDF failed to load in iframe');
+              }
+              
+              function downloadPdf() {
+                const link = document.createElement('a');
+                link.href = '${blobUrl}';
+                link.download = '${note.fileName}';
+                link.click();
+              }
+              
+              // Fallback timeout
+              setTimeout(() => {
+                const loading = document.getElementById('loading');
+                if (loading && loading.style.display !== 'none') {
+                  showError();
+                }
+              }, 10000);
+              
+              // Clean up blob URL when window closes
+              window.addEventListener('beforeunload', () => {
+                URL.revokeObjectURL('${blobUrl}');
+              });
+            </script>
+          </body>
+        </html>
+      `);
+      
+      newWindow.document.close();
+      
+      // Clean up blob URL after 5 minutes
       setTimeout(() => {
-        window.URL.revokeObjectURL(blobUrl);
-      }, 60000); // 1 minute
+        URL.revokeObjectURL(blobUrl);
+        console.log('Blob URL cleaned up');
+      }, 300000);
       
     } catch (error: any) {
       console.error('❌ Failed to view base64 PDF:', error);
-      alert(`Failed to view base64 PDF: ${error.message}`);
+      alert(`Failed to view PDF: ${error.message}\nTrying download instead...`);
+      this.downloadBase64Pdf(note.pdfUrl, note.fileName);
     }
   }
 
