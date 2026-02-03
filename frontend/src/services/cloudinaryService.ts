@@ -53,12 +53,6 @@ export class CloudinaryService {
       formData.append('context', context);
 
       console.log('🌐 CloudinaryService: Making API call to:', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`);
-      console.log('🛠️ CloudinaryService: Environment check:', {
-        isDevelopment: (import.meta.env?.DEV ?? false),
-        isProduction: (import.meta.env?.PROD ?? false), 
-        mode: (import.meta.env?.MODE ?? 'development'),
-        baseUrl: (import.meta.env?.BASE_URL ?? '/')
-      });
 
       // Upload to Cloudinary
       const uploadResponse = await fetch(

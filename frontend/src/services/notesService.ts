@@ -294,9 +294,9 @@ export class NotesService {
         // Generate multiple URL formats to try
         urlsToTry.push(
           // Raw delivery (correct for PDFs)
-          `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dhvnt156n'}/raw/upload/${publicId}`,
+          `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`,
           // Raw delivery with v1
-          `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dhvnt156n'}/raw/upload/v1/${publicId}`,
+          `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/v1/${publicId}`,
           // Original secure URL
           note.pdfUrl
         );
