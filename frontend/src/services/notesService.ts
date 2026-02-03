@@ -228,13 +228,23 @@ export class NotesService {
   }
 
   /**
-   * Downloads PDF note from Cloudinary
+   * Downloads PDF note from Cloudinary with fallback URL handling
    */
   static downloadNote(note: Note): void {
     try {
-      // For Cloudinary URLs, we can directly download
+      console.log('📥 Attempting to download PDF:', note.fileName);
+      console.log('📥 Original pdfUrl:', note.pdfUrl);
+      
+      let downloadUrl = note.pdfUrl;
+      
+      // If we have cloudinaryPublicId, use optimized download URL
+      if (note.cloudinaryPublicId) {
+        downloadUrl = CloudinaryService.getDownloadUrl(note.cloudinaryPublicId, note.fileName);
+        console.log('📥 Using optimized download URL:', downloadUrl);
+      }
+      
       const link = document.createElement('a');
-      link.href = note.pdfUrl;
+      link.href = downloadUrl;
       link.download = note.fileName;
       link.target = '_blank'; // Open in new tab if download fails
       document.body.appendChild(link);
@@ -249,16 +259,27 @@ export class NotesService {
   }
 
   /**
-   * Opens PDF in new tab for viewing
+   * Opens PDF in new tab for viewing with optimized URL handling
    */
   static viewNote(note: Note): void {
     try {
+      console.log('👁️ Attempting to view PDF:', note.fileName);
+      console.log('👁️ Original pdfUrl:', note.pdfUrl);
+      
+      let viewUrl = note.pdfUrl;
+      
+      // If we have cloudinaryPublicId, use optimized view URL
+      if (note.cloudinaryPublicId) {
+        viewUrl = CloudinaryService.getOptimizedUrl(note.cloudinaryPublicId);
+        console.log('👁️ Using optimized view URL:', viewUrl);
+      }
+      
       // Open Cloudinary PDF URL in new window
       const newWindow = window.open();
       if (newWindow) {
         newWindow.document.write(`
-          <iframe src="${note.pdfUrl}" width="100%" height="100%" style="border:none;">
-            <p>Your browser does not support PDFs. <a href="${note.pdfUrl}" download="${note.fileName}">Download the PDF</a>.</p>
+          <iframe src="${viewUrl}" width="100%" height="100%" style="border:none;">
+            <p>Your browser does not support PDFs. <a href="${viewUrl}" download="${note.fileName}">Download the PDF</a>.</p>
           </iframe>
         `);
         newWindow.document.title = note.title;

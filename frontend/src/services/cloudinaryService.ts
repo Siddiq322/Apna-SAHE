@@ -132,12 +132,25 @@ export class CloudinaryService {
   }
 
   /**
-   * Get optimized URL for PDF delivery
+   * Get optimized URL for PDF delivery with public access
    * @param publicId - Public ID of the file
-   * @returns Optimized URL
+   * @returns Optimized public URL
    */
   static getOptimizedUrl(publicId: string): string {
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/fl_attachment/${publicId}`;
+    // Use public delivery URL format for unrestricted access
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
+  }
+
+  /**
+   * Get download URL for PDF with proper filename
+   * @param publicId - Public ID of the file
+   * @param filename - Original filename for download
+   * @returns Download URL with attachment flag
+   */
+  static getDownloadUrl(publicId: string, filename?: string): string {
+    const baseUrl = `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload`;
+    const attachmentFlag = filename ? `fl_attachment:${encodeURIComponent(filename)}` : 'fl_attachment';
+    return `${baseUrl}/${attachmentFlag}/${publicId}`;
   }
 
   /**
