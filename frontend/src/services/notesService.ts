@@ -274,53 +274,120 @@ export class NotesService {
       console.log('👁️ Attempting to view PDF:', note.fileName);
       console.log('👁️ Original pdfUrl:', note.pdfUrl);
       
-      let viewUrl = note.pdfUrl;
+      // Create multiple URL options to try
+      const urlsToTry = [];
       
-      // If we have cloudinaryPublicId, try optimized URLs
+      // If we have cloudinaryPublicId, generate proper URLs
       if (note.cloudinaryPublicId) {
-        // Try the original secure_url first, then fallbacks
-        const fallbackUrls = [
-          note.pdfUrl, // Original secure_url
-          CloudinaryService.getOptimizedUrl(note.cloudinaryPublicId), // Image delivery
-          CloudinaryService.getDirectUrl(note.cloudinaryPublicId), // Direct raw
-          `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/raw/upload/${note.cloudinaryPublicId}` // Simple raw
-        ];
+        // Extract public ID from existing URL if needed
+        let publicId = note.cloudinaryPublicId;
         
-        viewUrl = fallbackUrls[0]; // Start with first URL
-        console.log('👁️ Available fallback URLs:', fallbackUrls);
+        // If the stored URL has the wrong format, extract the public ID
+        if (note.pdfUrl && note.pdfUrl.includes('cloudinary.com')) {
+          const urlMatch = note.pdfUrl.match(/\/(?:image|raw)\/upload\/(?:v\d+\/)?(.+?)(?:\.pdf)?$/);
+          if (urlMatch && urlMatch[1]) {
+            publicId = urlMatch[1];
+            console.log('👁️ Extracted public ID from URL:', publicId);
+          }
+        }
+        
+        // Generate multiple URL formats to try
+        urlsToTry.push(
+          // Raw delivery (correct for PDFs)
+          `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dhvnt156n'}/raw/upload/${publicId}`,
+          // Raw delivery with v1
+          `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dhvnt156n'}/raw/upload/v1/${publicId}`,
+          // Original secure URL
+          note.pdfUrl
+        );
+      } else {
+        // Just use the original URL
+        urlsToTry.push(note.pdfUrl);
       }
       
-      // Open PDF in new window
+      console.log('👁️ URLs to try:', urlsToTry);
+      
+      // Use the first URL as primary, others as fallbacks
+      const primaryUrl = urlsToTry[0];
+      
+      // Open PDF in new window with fallback handling
       const newWindow = window.open();
       if (newWindow) {
-        // Create a more robust viewer that tries multiple URLs
         newWindow.document.write(`
           <!DOCTYPE html>
           <html>
             <head>
               <title>${note.title}</title>
               <style>
-                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-                iframe { width: 100%; height: calc(100vh - 100px); border: none; }
-                .error { color: red; margin: 10px 0; }
-                .url-test { margin: 5px 0; }
-                button { margin: 5px; padding: 10px; }
+                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #f5f5f5; }
+                .container { max-width: 100%; height: calc(100vh - 40px); background: white; border-radius: 8px; overflow: hidden; }
+                iframe { width: 100%; height: 100%; border: none; }
+                .error { color: #e74c3c; margin: 20px; text-align: center; }
+                .loading { color: #3498db; margin: 20px; text-align: center; }
+                .controls { padding: 10px; background: #34495e; color: white; text-align: center; }
+                button { margin: 5px; padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
+                button:hover { background: #2980b9; }
+                .url-info { font-size: 12px; color: #7f8c8d; margin-top: 10px; word-break: break-all; }
               </style>
             </head>
             <body>
-              <h3>${note.title}</h3>
-              <div id="viewer">
-                <iframe src="${viewUrl}" onload="console.log('PDF loaded successfully')" onerror="console.error('PDF load failed')">
-                  <p>Your browser does not support PDFs. <a href="${viewUrl}" download="${note.fileName}">Download the PDF</a>.</p>
+              <div class="controls">
+                <strong>${note.title}</strong>
+                <div class="url-info">Loading: ${primaryUrl}</div>
+              </div>
+              <div class="container">
+                <div class="loading" id="loading">Loading PDF...</div>
+                <iframe id="pdfFrame" src="${primaryUrl}" style="display:none;" 
+                  onload="document.getElementById('loading').style.display='none'; this.style.display='block';"
+                  onerror="handlePdfError()">
                 </iframe>
+                <div class="error" id="error" style="display:none;">
+                  <h3>Failed to load PDF</h3>
+                  <p>Trying alternative URLs...</p>
+                  <div id="fallbackLinks"></div>
+                </div>
               </div>
-              <div style="margin-top: 10px;">
-                <button onclick="window.open('${viewUrl}', '_blank')">Open in New Tab</button>
-                <button onclick="location.href='${viewUrl}'">Direct Download</button>
-              </div>
+              
               <script>
-                console.log('PDF viewer loaded for: ${note.fileName}');
-                console.log('Using URL:', '${viewUrl}');
+                const urlsToTry = ${JSON.stringify(urlsToTry)};
+                let currentUrlIndex = 0;
+                
+                function handlePdfError() {
+                  console.log('PDF load failed for URL:', urlsToTry[currentUrlIndex]);
+                  currentUrlIndex++;
+                  
+                  if (currentUrlIndex < urlsToTry.length) {
+                    console.log('Trying next URL:', urlsToTry[currentUrlIndex]);
+                    document.querySelector('.url-info').textContent = 'Trying: ' + urlsToTry[currentUrlIndex];
+                    document.getElementById('pdfFrame').src = urlsToTry[currentUrlIndex];
+                  } else {
+                    // All URLs failed, show error with download options
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('pdfFrame').style.display = 'none';
+                    document.getElementById('error').style.display = 'block';
+                    
+                    const fallbackLinks = document.getElementById('fallbackLinks');
+                    urlsToTry.forEach((url, index) => {
+                      const link = document.createElement('button');
+                      link.textContent = \`Try URL \${index + 1}\`;
+                      link.onclick = () => window.open(url, '_blank');
+                      fallbackLinks.appendChild(link);
+                    });
+                  }
+                }
+                
+                // Set up error handling
+                window.addEventListener('load', () => {
+                  const frame = document.getElementById('pdfFrame');
+                  frame.addEventListener('error', handlePdfError);
+                  
+                  // Fallback timeout
+                  setTimeout(() => {
+                    if (document.getElementById('loading').style.display !== 'none') {
+                      handlePdfError();
+                    }
+                  }, 10000);
+                });
               </script>
             </body>
           </html>
@@ -328,9 +395,10 @@ export class NotesService {
         newWindow.document.close();
       } else {
         // Fallback: direct navigation
-        window.open(viewUrl, '_blank');
+        window.open(primaryUrl, '_blank');
       }
-      console.log('✅ PDF opened for viewing:', note.fileName);
+      
+      console.log('✅ PDF viewer opened for:', note.fileName);
     } catch (error: any) {
       console.error('❌ Error viewing PDF:', error);
       throw error;
