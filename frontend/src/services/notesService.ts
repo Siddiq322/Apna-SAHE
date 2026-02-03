@@ -51,13 +51,13 @@ export class NotesService {
 
   /**
    * Uploads a PDF note with metadata and updates user points
-   * Uses Firebase Storage for reliable file storage
+   * Uses Firebase Storage for reliable file storage, with base64 fallback
    */
   static async uploadNote(noteData: UploadNoteData): Promise<string> {
     try {
       const { file, title, subject, branch, semester, uploaderId, uploaderName, uploaderRole } = noteData;
 
-      console.log('🔍 Starting PDF upload to Firebase Storage...');
+      console.log('🔍 Starting PDF upload...');
       console.log('📋 Upload data:', { title, subject, branch, semester, fileName: file.name, fileSize: file.size });
 
       // Validate PDF file
@@ -73,33 +73,54 @@ export class NotesService {
 
       console.log('✅ File validation passed');
 
-      // Generate unique filename and path
-      const timestamp = Date.now();
-      const sanitizedTitle = title.replace(/[^a-zA-Z0-9]/g, '_');
-      const fileName = `${branch}_${semester}_${subject}_${sanitizedTitle}_${timestamp}.pdf`;
-      const filePath = `notes/${branch}/${semester}/${fileName}`;
+      let pdfUrl: string;
+      let storagePath: string | undefined;
 
-      console.log('📤 Uploading to Firebase Storage...');
-      console.log('📁 Storage path:', filePath);
+      // Try Firebase Storage first, fallback to base64
+      try {
+        console.log('📤 Attempting Firebase Storage upload...');
+        
+        // Generate unique filename and path
+        const timestamp = Date.now();
+        const sanitizedTitle = title.replace(/[^a-zA-Z0-9]/g, '_');
+        const fileName = `${branch}_${semester}_${subject}_${sanitizedTitle}_${timestamp}.pdf`;
+        const filePath = `notes/${branch}/${semester}/${fileName}`;
 
-      // Upload to Firebase Storage
-      const storageRef = ref(storage, filePath);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+        // Upload to Firebase Storage
+        const storageRef = ref(storage, filePath);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
 
-      console.log('✅ PDF uploaded to Firebase Storage successfully');
-      console.log('🔗 Download URL:', downloadURL);
+        console.log('✅ Firebase Storage upload successful');
+        pdfUrl = downloadURL;
+        storagePath = filePath;
+        
+      } catch (storageError: any) {
+        console.warn('⚠️ Firebase Storage failed, using base64 fallback:', storageError.message);
+        console.log('📄 Converting to base64...');
+        
+        // Fallback to base64 storage
+        const arrayBuffer = await file.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        pdfUrl = `data:application/pdf;base64,${base64}`;
+        storagePath = undefined;
+        
+        console.log('✅ Base64 conversion successful');
+        alert('⚠️ Using temporary storage. For better performance, enable Firebase Storage in your project.');
+      }
+
+      console.log('🔗 Final PDF URL type:', pdfUrl.includes('firebase') ? 'Firebase Storage' : 'Base64');
 
       // Create note metadata in Firestore and update user points in a transaction
       const noteDocId = await runTransaction(db, async (transaction) => {
-        // Create note document with Firebase Storage data
+        // Create note document with appropriate storage data
         const note = {
           title: title,
           subject: subject,
           branch: branch.toUpperCase(),
           semester: semester,
-          pdfUrl: downloadURL, // Firebase Storage download URL
-          storagePath: filePath, // Store path for deletion
+          pdfUrl: pdfUrl, // Either Firebase Storage URL or base64 data
+          storagePath: storagePath, // Only present for Firebase Storage files
           fileName: file.name,
           fileSize: file.size,
           uploadedByName: uploaderName,
@@ -221,7 +242,7 @@ export class NotesService {
   }
 
   /**
-   * Downloads PDF note from Firebase Storage
+   * Downloads PDF note from Firebase Storage or base64 data
    */
   static downloadNote(note: Note): void {
     try {
@@ -238,13 +259,16 @@ export class NotesService {
       if (note.pdfUrl.includes('cloudinary.com')) {
         alert('⚠️ This note uses old Cloudinary storage and may not be accessible.\nPlease contact admin to re-upload this file.');
         console.warn('⚠️ Attempting to access legacy Cloudinary URL:', note.pdfUrl);
-      }
-      
-      // For Firebase Storage URLs, try multiple approaches
-      if (note.pdfUrl.includes('firebasestorage.googleapis.com')) {
+        this.createDownloadLink(note.pdfUrl, note.fileName);
+      } else if (note.pdfUrl.startsWith('data:application/pdf;base64,')) {
+        // Handle base64 PDF data
+        console.log('📄 Downloading base64 PDF');
+        this.downloadBase64Pdf(note.pdfUrl, note.fileName);
+      } else if (note.pdfUrl.includes('firebasestorage.googleapis.com')) {
+        // Handle Firebase Storage URLs
         this.downloadFirebaseStorageFile(note);
       } else {
-        // Direct download for other URLs
+        // Unknown format, try direct download
         this.createDownloadLink(note.pdfUrl, note.fileName);
       }
       
@@ -252,6 +276,40 @@ export class NotesService {
       console.error('❌ Error downloading PDF:', error);
       alert(`Download failed: ${error.message}`);
       throw error;
+    }
+  }
+
+  /**
+   * Download base64 PDF data
+   */
+  private static downloadBase64Pdf(base64Data: string, fileName: string): void {
+    try {
+      // Create blob from base64 data
+      const byteCharacters = atob(base64Data.split(',')[1]);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      
+      // Create download URL
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      window.URL.revokeObjectURL(url);
+      
+      console.log('✅ Base64 PDF download initiated:', fileName);
+    } catch (error: any) {
+      console.error('❌ Failed to download base64 PDF:', error);
+      alert(`Failed to download base64 PDF: ${error.message}`);
     }
   }
 
@@ -356,52 +414,88 @@ export class NotesService {
       if (note.pdfUrl.includes('cloudinary.com')) {
         alert('⚠️ This note uses old Cloudinary storage and may not be accessible.\nTrying to open anyway...');
         console.warn('⚠️ Attempting to access legacy Cloudinary URL:', note.pdfUrl);
-      }
-      
-      let urlToOpen = note.pdfUrl;
-      
-      // For Firebase Storage URLs, try to use public access
-      if (note.pdfUrl.includes('firebasestorage.googleapis.com')) {
-        // Try removing authentication tokens for public access
-        if (note.pdfUrl.includes('token=')) {
-          const publicUrl = note.pdfUrl.split('&token=')[0].split('?token=')[0];
-          console.log('🔓 Trying public URL:', publicUrl);
-          urlToOpen = publicUrl;
-        }
-      }
-      
-      // Simple approach: just open the URL directly
-      console.log('🌐 Opening URL:', urlToOpen);
-      const newWindow = window.open(urlToOpen, '_blank');
-      
-      if (!newWindow) {
-        // Popup blocked, show alternative
-        alert('Popup blocked! Copy this URL to view the PDF:\\n\\n' + urlToOpen);
-        
-        // Try to copy to clipboard
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(urlToOpen).then(() => {
-            console.log('📋 URL copied to clipboard');
-          });
-        }
+        window.open(note.pdfUrl, '_blank');
+      } else if (note.pdfUrl.startsWith('data:application/pdf;base64,')) {
+        // Handle base64 PDF data
+        console.log('📄 Viewing base64 PDF');
+        this.viewBase64Pdf(note);
+      } else if (note.pdfUrl.includes('firebasestorage.googleapis.com')) {
+        // Handle Firebase Storage URLs
+        this.viewFirebaseStorageFile(note);
       } else {
-        // Set up error handling for the new window
-        newWindow.addEventListener('load', () => {
-          console.log('✅ PDF viewer opened successfully');
-        });
-        
-        newWindow.addEventListener('error', () => {
-          console.error('❌ PDF failed to load in new window');
-          alert('PDF failed to load. Try copying this URL to your browser:\\n\\n' + urlToOpen);
-        });
+        // Unknown format, try direct view
+        window.open(note.pdfUrl, '_blank');
       }
       
       console.log('✅ PDF viewer opened for:', note.fileName);
       
     } catch (error: any) {
       console.error('❌ Error viewing PDF:', error);
-      alert(`View failed: ${error.message}\\n\\nTry this URL directly:\\n${note.pdfUrl}`);
+      alert(`View failed: ${error.message}`);
       throw error;
+    }
+  }
+
+  /**
+   * View base64 PDF in new window
+   */
+  private static viewBase64Pdf(note: Note): void {
+    try {
+      // Create blob URL for base64 data
+      const byteCharacters = atob(note.pdfUrl.split(',')[1]);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Open in new window
+      const newWindow = window.open(blobUrl, '_blank');
+      
+      if (!newWindow) {
+        alert('Popup blocked! The PDF is available but cannot open in new window.');
+        // Fallback: download the file
+        this.downloadBase64Pdf(note.pdfUrl, note.fileName);
+      }
+      
+      // Clean up blob URL after a delay
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 60000); // 1 minute
+      
+    } catch (error: any) {
+      console.error('❌ Failed to view base64 PDF:', error);
+      alert(`Failed to view base64 PDF: ${error.message}`);
+    }
+  }
+
+  /**
+   * View Firebase Storage PDF
+   */
+  private static viewFirebaseStorageFile(note: Note): void {
+    let urlToOpen = note.pdfUrl;
+    
+    // For Firebase Storage URLs, try to use public access
+    if (note.pdfUrl.includes('token=')) {
+      const publicUrl = note.pdfUrl.split('&token=')[0].split('?token=')[0];
+      console.log('🔓 Trying public URL:', publicUrl);
+      urlToOpen = publicUrl;
+    }
+    
+    console.log('🌐 Opening Firebase Storage URL:', urlToOpen);
+    const newWindow = window.open(urlToOpen, '_blank');
+    
+    if (!newWindow) {
+      alert('Popup blocked! Copy this URL to view the PDF:\\n\\n' + urlToOpen);
+      
+      // Try to copy to clipboard
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(urlToOpen).then(() => {
+          console.log('📋 URL copied to clipboard');
+        });
+      }
     }
   }
 
