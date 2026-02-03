@@ -45,6 +45,8 @@ export class CloudinaryService {
       formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
       formData.append('folder', `${CLOUDINARY_CONFIG.folder}/${metadata.branch}/${metadata.semester}/${metadata.subject}`);
       formData.append('resource_type', 'raw'); // Important for PDF files
+      formData.append('access_mode', 'public'); // Ensure public access
+      formData.append('type', 'upload'); // Explicit upload type
       
       // Add context metadata
       const context = `title=${metadata.title}|branch=${metadata.branch}|semester=${metadata.semester}|subject=${metadata.subject}`;
@@ -137,8 +139,8 @@ export class CloudinaryService {
    * @returns Optimized public URL
    */
   static getOptimizedUrl(publicId: string): string {
-    // Use public delivery URL format for unrestricted access
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
+    // Use image delivery for better public access (works for PDFs too)
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/image/upload/fl_attachment/${publicId}.pdf`;
   }
 
   /**
@@ -148,9 +150,19 @@ export class CloudinaryService {
    * @returns Download URL with attachment flag
    */
   static getDownloadUrl(publicId: string, filename?: string): string {
-    const baseUrl = `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload`;
+    // Use image delivery with attachment flag for downloads
+    const baseUrl = `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/image/upload`;
     const attachmentFlag = filename ? `fl_attachment:${encodeURIComponent(filename)}` : 'fl_attachment';
-    return `${baseUrl}/${attachmentFlag}/${publicId}`;
+    return `${baseUrl}/${attachmentFlag}/${publicId}.pdf`;
+  }
+
+  /**
+   * Get direct URL for PDF viewing (fallback method)
+   * @param publicId - Public ID of the file
+   * @returns Direct URL
+   */
+  static getDirectUrl(publicId: string): string {
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/v1/${publicId}`;
   }
 
   /**

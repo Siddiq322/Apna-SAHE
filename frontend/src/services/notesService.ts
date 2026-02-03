@@ -259,7 +259,7 @@ export class NotesService {
   }
 
   /**
-   * Opens PDF in new tab for viewing with optimized URL handling
+   * Opens PDF in new tab for viewing with multiple URL fallbacks
    */
   static viewNote(note: Note): void {
     try {
@@ -268,21 +268,59 @@ export class NotesService {
       
       let viewUrl = note.pdfUrl;
       
-      // If we have cloudinaryPublicId, use optimized view URL
+      // If we have cloudinaryPublicId, try optimized URLs
       if (note.cloudinaryPublicId) {
-        viewUrl = CloudinaryService.getOptimizedUrl(note.cloudinaryPublicId);
-        console.log('👁️ Using optimized view URL:', viewUrl);
+        // Try the original secure_url first, then fallbacks
+        const fallbackUrls = [
+          note.pdfUrl, // Original secure_url
+          CloudinaryService.getOptimizedUrl(note.cloudinaryPublicId), // Image delivery
+          CloudinaryService.getDirectUrl(note.cloudinaryPublicId), // Direct raw
+          `https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/raw/upload/${note.cloudinaryPublicId}` // Simple raw
+        ];
+        
+        viewUrl = fallbackUrls[0]; // Start with first URL
+        console.log('👁️ Available fallback URLs:', fallbackUrls);
       }
       
-      // Open Cloudinary PDF URL in new window
+      // Open PDF in new window
       const newWindow = window.open();
       if (newWindow) {
+        // Create a more robust viewer that tries multiple URLs
         newWindow.document.write(`
-          <iframe src="${viewUrl}" width="100%" height="100%" style="border:none;">
-            <p>Your browser does not support PDFs. <a href="${viewUrl}" download="${note.fileName}">Download the PDF</a>.</p>
-          </iframe>
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${note.title}</title>
+              <style>
+                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+                iframe { width: 100%; height: calc(100vh - 100px); border: none; }
+                .error { color: red; margin: 10px 0; }
+                .url-test { margin: 5px 0; }
+                button { margin: 5px; padding: 10px; }
+              </style>
+            </head>
+            <body>
+              <h3>${note.title}</h3>
+              <div id="viewer">
+                <iframe src="${viewUrl}" onload="console.log('PDF loaded successfully')" onerror="console.error('PDF load failed')">
+                  <p>Your browser does not support PDFs. <a href="${viewUrl}" download="${note.fileName}">Download the PDF</a>.</p>
+                </iframe>
+              </div>
+              <div style="margin-top: 10px;">
+                <button onclick="window.open('${viewUrl}', '_blank')">Open in New Tab</button>
+                <button onclick="location.href='${viewUrl}'">Direct Download</button>
+              </div>
+              <script>
+                console.log('PDF viewer loaded for: ${note.fileName}');
+                console.log('Using URL:', '${viewUrl}');
+              </script>
+            </body>
+          </html>
         `);
-        newWindow.document.title = note.title;
+        newWindow.document.close();
+      } else {
+        // Fallback: direct navigation
+        window.open(viewUrl, '_blank');
       }
       console.log('✅ PDF opened for viewing:', note.fileName);
     } catch (error: any) {
