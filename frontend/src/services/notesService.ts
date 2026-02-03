@@ -12,11 +12,9 @@ import {
   serverTimestamp,
   runTransaction
 } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, auth, storage } from '../config/firebase';
 import { AuthService } from './authService';
-import { CloudinaryService } from './cloudinaryService';
-import { CLOUDINARY_CONFIG } from '../config/cloudinary';
 
 export interface Note {
   id?: string;
@@ -25,7 +23,7 @@ export interface Note {
   branch: string;
   semester: string;
   pdfUrl: string;
-  cloudinaryPublicId?: string; // New field for Cloudinary
+  storagePath?: string; // Firebase Storage path for deletion
   fileName: string;
   fileSize: number;
   uploadedByName: string;
@@ -46,67 +44,64 @@ export interface UploadNoteData {
 }
 
 /**
- * Notes service for managing PDF notes with Cloudinary and Firestore
- * Upgraded from base64 storage to Cloudinary for better performance and 25GB free storage
+ * Notes service for managing PDF notes with Firebase Storage and Firestore
+ * Uses Firebase Storage for reliable file storage and management
  */
 export class NotesService {
 
   /**
    * Uploads a PDF note with metadata and updates user points
-   * Now uses Cloudinary instead of base64 for better performance and more storage
+   * Uses Firebase Storage for reliable file storage
    */
   static async uploadNote(noteData: UploadNoteData): Promise<string> {
     try {
       const { file, title, subject, branch, semester, uploaderId, uploaderName, uploaderRole } = noteData;
 
-      console.log('🔍 Starting PDF upload to Cloudinary...');
+      console.log('🔍 Starting PDF upload to Firebase Storage...');
       console.log('📋 Upload data:', { title, subject, branch, semester, fileName: file.name, fileSize: file.size });
 
-      // Validate file using Cloudinary service
-      CloudinaryService.validatePDF(file);
+      // Validate PDF file
+      if (!file.type.includes('pdf')) {
+        throw new Error('Only PDF files are allowed');
+      }
+
+      // Validate file size (limit to 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > maxSize) {
+        throw new Error('File size should not exceed 10MB');
+      }
+
       console.log('✅ File validation passed');
 
-      // Upload to Cloudinary
-      console.log('☁️ Uploading to Cloudinary with config:', {
-        cloudName: CLOUDINARY_CONFIG.cloudName,
-        uploadPreset: CLOUDINARY_CONFIG.uploadPreset
-      });
-      
-      let cloudinaryResult;
-      try {
-        cloudinaryResult = await CloudinaryService.uploadPDF(file, {
-          branch,
-          semester,
-          subject,
-          title
-        });
-        console.log('✅ PDF uploaded to Cloudinary successfully:', cloudinaryResult);
-        
-        // Double-check that we got a proper URL and not base64 data
-        if (!cloudinaryResult.secure_url || cloudinaryResult.secure_url.startsWith('data:')) {
-          throw new Error('Invalid response from Cloudinary - got base64 instead of URL');
-        }
-        
-      } catch (cloudinaryError: any) {
-        console.error('❌ Cloudinary upload failed:', cloudinaryError);
-        throw new Error(`Cloudinary upload failed: ${cloudinaryError?.message || 'Unknown error'}. Please check your upload preset configuration.`);
-      }
-      console.log('🔍 Creating note metadata in Firestore...');
-      console.log('🔍 pdfUrl that will be stored:', cloudinaryResult.secure_url);
-      console.log('🔍 pdfUrl length:', cloudinaryResult.secure_url.length);
+      // Generate unique filename and path
+      const timestamp = Date.now();
+      const sanitizedTitle = title.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `${branch}_${semester}_${subject}_${sanitizedTitle}_${timestamp}.pdf`;
+      const filePath = `notes/${branch}/${semester}/${fileName}`;
+
+      console.log('📤 Uploading to Firebase Storage...');
+      console.log('📁 Storage path:', filePath);
+
+      // Upload to Firebase Storage
+      const storageRef = ref(storage, filePath);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      console.log('✅ PDF uploaded to Firebase Storage successfully');
+      console.log('🔗 Download URL:', downloadURL);
 
       // Create note metadata in Firestore and update user points in a transaction
       const noteDocId = await runTransaction(db, async (transaction) => {
-        // Create note document with Cloudinary data
+        // Create note document with Firebase Storage data
         const note = {
           title: title,
           subject: subject,
           branch: branch.toUpperCase(),
           semester: semester,
-          pdfUrl: cloudinaryResult.secure_url, // Cloudinary URL instead of base64
-          cloudinaryPublicId: cloudinaryResult.public_id, // Store for deletion if needed
-          fileName: cloudinaryResult.original_filename || file.name,
-          fileSize: cloudinaryResult.bytes || file.size,
+          pdfUrl: downloadURL, // Firebase Storage download URL
+          storagePath: filePath, // Store path for deletion
+          fileName: file.name,
+          fileSize: file.size,
           uploadedByName: uploaderName,
           uploadedByRole: uploaderRole,
           uploaderId: uploaderId,
@@ -114,8 +109,6 @@ export class NotesService {
         };
 
         console.log('🔍 Note object before saving:', note);
-        console.log('🔍 pdfUrl in note object:', note.pdfUrl);
-        console.log('🔍 pdfUrl type:', typeof note.pdfUrl);
 
         const notesCollection = collection(db, 'notes');
         const docRef = await addDoc(notesCollection, note);
@@ -228,31 +221,15 @@ export class NotesService {
   }
 
   /**
-   * Downloads PDF note from Cloudinary with fallback URL handling
+   * Downloads PDF note from Firebase Storage
    */
   static downloadNote(note: Note): void {
     try {
       console.log('📥 Attempting to download PDF:', note.fileName);
-      console.log('📥 Original pdfUrl:', note.pdfUrl);
-      
-      let downloadUrl = note.pdfUrl;
-      
-      // If we have cloudinaryPublicId, use proper raw delivery URL
-      if (note.cloudinaryPublicId) {
-        // Try different URL formats for download
-        const downloadUrls = [
-          CloudinaryService.getDownloadUrl(note.cloudinaryPublicId, note.fileName),
-          CloudinaryService.getOptimizedUrl(note.cloudinaryPublicId),
-          note.pdfUrl // Original secure_url as fallback
-        ];
-        
-        downloadUrl = downloadUrls[0]; // Use the download URL first
-        console.log('📥 Using download URL:', downloadUrl);
-        console.log('📥 Available fallback URLs:', downloadUrls);
-      }
+      console.log('📥 Download URL:', note.pdfUrl);
       
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = note.pdfUrl;
       link.download = note.fileName;
       link.target = '_blank'; // Open in new tab if download fails
       document.body.appendChild(link);
@@ -267,50 +244,14 @@ export class NotesService {
   }
 
   /**
-   * Opens PDF in new tab for viewing with multiple URL fallbacks
+   * Opens PDF in new tab for viewing
    */
   static viewNote(note: Note): void {
     try {
       console.log('👁️ Attempting to view PDF:', note.fileName);
-      console.log('👁️ Original pdfUrl:', note.pdfUrl);
+      console.log('👁️ PDF URL:', note.pdfUrl);
       
-      // Create multiple URL options to try
-      const urlsToTry = [];
-      
-      // If we have cloudinaryPublicId, generate proper URLs
-      if (note.cloudinaryPublicId) {
-        // Extract public ID from existing URL if needed
-        let publicId = note.cloudinaryPublicId;
-        
-        // If the stored URL has the wrong format, extract the public ID
-        if (note.pdfUrl && note.pdfUrl.includes('cloudinary.com')) {
-          const urlMatch = note.pdfUrl.match(/\/(?:image|raw)\/upload\/(?:v\d+\/)?(.+?)(?:\.pdf)?$/);
-          if (urlMatch && urlMatch[1]) {
-            publicId = urlMatch[1];
-            console.log('👁️ Extracted public ID from URL:', publicId);
-          }
-        }
-        
-        // Generate multiple URL formats to try
-        urlsToTry.push(
-          // Raw delivery (correct for PDFs)
-          `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`,
-          // Raw delivery with v1
-          `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/v1/${publicId}`,
-          // Original secure URL
-          note.pdfUrl
-        );
-      } else {
-        // Just use the original URL
-        urlsToTry.push(note.pdfUrl);
-      }
-      
-      console.log('👁️ URLs to try:', urlsToTry);
-      
-      // Use the first URL as primary, others as fallbacks
-      const primaryUrl = urlsToTry[0];
-      
-      // Open PDF in new window with fallback handling
+      // Open PDF in new window
       const newWindow = window.open();
       if (newWindow) {
         newWindow.document.write(`
@@ -327,75 +268,33 @@ export class NotesService {
                 .controls { padding: 10px; background: #34495e; color: white; text-align: center; }
                 button { margin: 5px; padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
                 button:hover { background: #2980b9; }
-                .url-info { font-size: 12px; color: #7f8c8d; margin-top: 10px; word-break: break-all; }
               </style>
             </head>
             <body>
               <div class="controls">
                 <strong>${note.title}</strong>
-                <div class="url-info">Loading: ${primaryUrl}</div>
+                <button onclick="window.open('${note.pdfUrl}', '_blank')">Download</button>
               </div>
               <div class="container">
                 <div class="loading" id="loading">Loading PDF...</div>
-                <iframe id="pdfFrame" src="${primaryUrl}" style="display:none;" 
+                <iframe id="pdfFrame" src="${note.pdfUrl}" style="display:none;" 
                   onload="document.getElementById('loading').style.display='none'; this.style.display='block';"
-                  onerror="handlePdfError()">
+                  onerror="document.getElementById('loading').style.display='none'; document.getElementById('error').style.display='block';">
                 </iframe>
                 <div class="error" id="error" style="display:none;">
                   <h3>Failed to load PDF</h3>
-                  <p>Trying alternative URLs...</p>
-                  <div id="fallbackLinks"></div>
+                  <p>The PDF could not be displayed in this browser.</p>
+                  <button onclick="window.open('${note.pdfUrl}', '_blank')">Open in New Tab</button>
+                  <button onclick="window.location.href='${note.pdfUrl}'">Direct Download</button>
                 </div>
               </div>
-              
-              <script>
-                const urlsToTry = ${JSON.stringify(urlsToTry)};
-                let currentUrlIndex = 0;
-                
-                function handlePdfError() {
-                  console.log('PDF load failed for URL:', urlsToTry[currentUrlIndex]);
-                  currentUrlIndex++;
-                  
-                  if (currentUrlIndex < urlsToTry.length) {
-                    console.log('Trying next URL:', urlsToTry[currentUrlIndex]);
-                    document.querySelector('.url-info').textContent = 'Trying: ' + urlsToTry[currentUrlIndex];
-                    document.getElementById('pdfFrame').src = urlsToTry[currentUrlIndex];
-                  } else {
-                    // All URLs failed, show error with download options
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('pdfFrame').style.display = 'none';
-                    document.getElementById('error').style.display = 'block';
-                    
-                    const fallbackLinks = document.getElementById('fallbackLinks');
-                    urlsToTry.forEach((url, index) => {
-                      const link = document.createElement('button');
-                      link.textContent = \`Try URL \${index + 1}\`;
-                      link.onclick = () => window.open(url, '_blank');
-                      fallbackLinks.appendChild(link);
-                    });
-                  }
-                }
-                
-                // Set up error handling
-                window.addEventListener('load', () => {
-                  const frame = document.getElementById('pdfFrame');
-                  frame.addEventListener('error', handlePdfError);
-                  
-                  // Fallback timeout
-                  setTimeout(() => {
-                    if (document.getElementById('loading').style.display !== 'none') {
-                      handlePdfError();
-                    }
-                  }, 10000);
-                });
-              </script>
             </body>
           </html>
         `);
         newWindow.document.close();
       } else {
         // Fallback: direct navigation
-        window.open(primaryUrl, '_blank');
+        window.open(note.pdfUrl, '_blank');
       }
       
       console.log('✅ PDF viewer opened for:', note.fileName);
@@ -460,30 +359,32 @@ export class NotesService {
       
       console.log('✅ Authorization granted for note deletion');
 
-      // Extract file path from URL for storage deletion
-      let storagePath = '';
-      try {
-        if (noteDoc.pdfUrl && noteDoc.pdfUrl.includes('firebase')) {
-          // Extract the file path from Firebase Storage URL
-          const urlParts = noteDoc.pdfUrl.split('/o/')[1];
-          if (urlParts) {
-            storagePath = decodeURIComponent(urlParts.split('?')[0]);
-            console.log('📁 Storage path extracted:', storagePath);
-          }
-        }
-      } catch (pathError) {
-        console.warn('⚠️ Could not extract storage path:', pathError);
-      }
-
-      // 0. Delete the actual PDF file from Cloudinary first (so we truly free space)
-      if (noteDoc.cloudinaryPublicId) {
+      // Delete the actual PDF file from Firebase Storage first (so we truly free space)
+      if (noteDoc.storagePath) {
         try {
-          const idToken = await currentUser.getIdToken();
-          await CloudinaryService.deleteNoteFile(noteId, idToken);
-          console.log('🗑️ PDF file deleted from Cloudinary successfully');
-        } catch (cloudinaryError: any) {
-          console.error('❌ Failed to delete PDF from Cloudinary:', cloudinaryError);
-          throw new Error(cloudinaryError?.message || 'Failed to delete file from Cloudinary');
+          const fileRef = ref(storage, noteDoc.storagePath);
+          await deleteObject(fileRef);
+          console.log('🗑️ PDF file deleted from Firebase Storage successfully');
+        } catch (storageError: any) {
+          console.error('❌ Failed to delete PDF from Firebase Storage:', storageError);
+          // Continue with database deletion even if file deletion fails
+          console.warn('⚠️ Continuing with database deletion despite storage error');
+        }
+      } else {
+        // Try to extract storage path from URL if storagePath is not available
+        try {
+          if (noteDoc.pdfUrl && noteDoc.pdfUrl.includes('firebase')) {
+            const urlParts = noteDoc.pdfUrl.split('/o/')[1];
+            if (urlParts) {
+              const storagePath = decodeURIComponent(urlParts.split('?')[0]);
+              console.log('📁 Storage path extracted from URL:', storagePath);
+              const fileRef = ref(storage, storagePath);
+              await deleteObject(fileRef);
+              console.log('🗑️ PDF file deleted from Firebase Storage (extracted path)');
+            }
+          }
+        } catch (pathError: any) {
+          console.warn('⚠️ Could not delete file from storage:', pathError.message);
         }
       }
 
@@ -514,21 +415,6 @@ export class NotesService {
           console.log('📉 User points will be reduced by 10');
         }
       });
-
-      // 3. Legacy support for Firebase Storage files
-      if (storagePath) {
-        // Legacy support for Firebase Storage files
-        try {
-          const fileRef = ref(storage, storagePath);
-          await deleteObject(fileRef);
-          console.log('🗑️ Legacy PDF file deleted from Firebase Storage:', storagePath);
-        } catch (storageError: any) {
-          console.warn('⚠️ Could not delete legacy file from storage:', storageError.message);
-          // Don't throw error as the database deletion was successful
-        }
-      } else {
-        console.warn('ℹ️ No storage file to delete (base64 or missing data)');
-      }
 
       console.log('✅ Note deleted successfully');
     } catch (error: any) {
