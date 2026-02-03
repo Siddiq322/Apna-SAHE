@@ -39,23 +39,45 @@ export class CloudinaryService {
         folder: `${CLOUDINARY_CONFIG.folder}/${metadata.branch}/${metadata.semester}/${metadata.subject}`
       });
 
-      // Create form data for upload - use minimal parameters
+      // Since your preset has restrictions, use direct signed upload via backend
+      console.log('🔄 Using backend signed upload to bypass preset restrictions');
+      
+      // First, get upload signature from backend
+      const base = (import.meta as any)?.env?.VITE_API_BASE_URL || '';
+      const apiBase = String(base).replace(/\/$/, '');
+      
+      const signResponse = await fetch(`${apiBase}/api/cloudinary/sign-upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          public_id: `apna_sahe_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+          resource_type: 'raw',
+          folder: 'apna-sahe-public'
+        })
+      });
+      
+      if (!signResponse.ok) {
+        throw new Error('Failed to get upload signature from backend');
+      }
+      
+      const signData = await signResponse.json();
+      
+      // Create form data with signed parameters
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-      
-      // Let Cloudinary handle the public_id and resource_type automatically
-      // Add basic tags for organization
-      formData.append('tags', `apna-sahe,${metadata.branch},${metadata.semester},${metadata.subject}`);
-      formData.append('context', `title=${metadata.title}`);
-      
-      console.log('📤 Using minimal upload parameters to work with preset constraints');
+      formData.append('public_id', signData.public_id);
+      formData.append('signature', signData.signature);
+      formData.append('timestamp', signData.timestamp);
+      formData.append('api_key', CLOUDINARY_CONFIG.apiKey);
+      formData.append('resource_type', 'raw');
 
-      console.log('🌐 CloudinaryService: Making API call to:', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`);
+      console.log('🌐 CloudinaryService: Making signed API call to:', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/raw/upload`);
 
-      // Upload to Cloudinary
+      // Upload to Cloudinary using signed upload
       const uploadResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`,
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/raw/upload`,
         {
           method: 'POST',
           body: formData,
@@ -133,14 +155,13 @@ export class CloudinaryService {
   }
 
   /**
-   * Get optimized URL for PDF delivery based on actual Cloudinary behavior
+   * Get optimized URL for PDF delivery using raw resource type
    * @param publicId - Public ID of the file
-   * @returns Working URL based on test results
+   * @returns Working URL for raw uploads
    */
   static getOptimizedUrl(publicId: string): string {
-    // From our test: Cloudinary stores PDFs in image/upload with version
-    // Use the secure_url directly since that's what actually works
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/image/upload/${publicId}`;
+    // Now using raw uploads with proper signatures - should work
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
   }
 
   /**
