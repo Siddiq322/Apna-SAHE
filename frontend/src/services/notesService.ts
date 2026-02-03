@@ -237,10 +237,18 @@ export class NotesService {
       
       let downloadUrl = note.pdfUrl;
       
-      // If we have cloudinaryPublicId, use optimized download URL
+      // If we have cloudinaryPublicId, use proper raw delivery URL
       if (note.cloudinaryPublicId) {
-        downloadUrl = CloudinaryService.getDownloadUrl(note.cloudinaryPublicId, note.fileName);
-        console.log('📥 Using optimized download URL:', downloadUrl);
+        // Try different URL formats for download
+        const downloadUrls = [
+          CloudinaryService.getDownloadUrl(note.cloudinaryPublicId, note.fileName),
+          CloudinaryService.getOptimizedUrl(note.cloudinaryPublicId),
+          note.pdfUrl // Original secure_url as fallback
+        ];
+        
+        downloadUrl = downloadUrls[0]; // Use the download URL first
+        console.log('📥 Using download URL:', downloadUrl);
+        console.log('📥 Available fallback URLs:', downloadUrls);
       }
       
       const link = document.createElement('a');

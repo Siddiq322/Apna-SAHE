@@ -139,8 +139,8 @@ export class CloudinaryService {
    * @returns Optimized public URL
    */
   static getOptimizedUrl(publicId: string): string {
-    // Use image delivery for better public access (works for PDFs too)
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/image/upload/fl_attachment/${publicId}.pdf`;
+    // Use raw delivery for PDFs (not image delivery)
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
   }
 
   /**
@@ -150,10 +150,13 @@ export class CloudinaryService {
    * @returns Download URL with attachment flag
    */
   static getDownloadUrl(publicId: string, filename?: string): string {
-    // Use image delivery with attachment flag for downloads
-    const baseUrl = `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/image/upload`;
-    const attachmentFlag = filename ? `fl_attachment:${encodeURIComponent(filename)}` : 'fl_attachment';
-    return `${baseUrl}/${attachmentFlag}/${publicId}.pdf`;
+    // Use raw delivery with attachment flag for downloads
+    const baseUrl = `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload`;
+    if (filename) {
+      // Use fl_attachment with filename for proper download
+      return `${baseUrl}/fl_attachment:${encodeURIComponent(filename)}/${publicId}`;
+    }
+    return `${baseUrl}/fl_attachment/${publicId}`;
   }
 
   /**
