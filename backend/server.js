@@ -111,6 +111,40 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/cloudinary/sign-upload', async (req, res) => {
+  try {
+    const { public_id, resource_type, folder } = req.body;
+    
+    if (!public_id) {
+      return res.status(400).json({ error: 'public_id is required' });
+    }
+    
+    const timestamp = Math.round(Date.now() / 1000);
+    
+    // Create signature for upload
+    const paramsToSign = {
+      public_id,
+      resource_type: resource_type || 'raw',
+      folder: folder || 'apna-sahe-public',
+      timestamp
+    };
+    
+    // Generate signature
+    const signature = cloudinary.utils.api_sign_request(paramsToSign, process.env.CLOUDINARY_API_SECRET);
+    
+    return res.json({
+      public_id: paramsToSign.public_id,
+      timestamp,
+      signature,
+      folder: paramsToSign.folder,
+      resource_type: paramsToSign.resource_type
+    });
+  } catch (err) {
+    console.error('❌ Cloudinary sign error:', err);
+    return res.status(500).json({ error: err?.message || 'Internal error' });
+  }
+});
+
 app.post('/api/cloudinary/delete-note-file', async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
