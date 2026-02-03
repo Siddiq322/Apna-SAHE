@@ -39,18 +39,17 @@ export class CloudinaryService {
         folder: `${CLOUDINARY_CONFIG.folder}/${metadata.branch}/${metadata.semester}/${metadata.subject}`
       });
 
-      // Create form data for upload - simplified approach
+      // Create form data for upload - use minimal parameters
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-      formData.append('resource_type', 'raw');
       
-      // Use simple public ID without complex folder structure
-      const simplePublicId = `pdf_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-      formData.append('public_id', simplePublicId);
-      
+      // Let Cloudinary handle the public_id and resource_type automatically
       // Add basic tags for organization
       formData.append('tags', `apna-sahe,${metadata.branch},${metadata.semester},${metadata.subject}`);
+      formData.append('context', `title=${metadata.title}`);
+      
+      console.log('📤 Using minimal upload parameters to work with preset constraints');
 
       console.log('🌐 CloudinaryService: Making API call to:', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`);
 
@@ -80,9 +79,15 @@ export class CloudinaryService {
       
       console.log('✅ CloudinaryService: Upload successful, result:', result);
       
+      // Extract public ID from the secure_url since that's the actual working format
+      let extractedPublicId = result.public_id;
+      if (!extractedPublicId && result.secure_url) {
+        extractedPublicId = CloudinaryService.extractPublicId(result.secure_url);
+      }
+      
       return {
-        public_id: result.public_id,
-        secure_url: result.secure_url,
+        public_id: extractedPublicId || result.public_id,
+        secure_url: result.secure_url, // Use this directly - it's the working URL
         original_filename: result.original_filename || file.name,
         bytes: result.bytes,
         format: result.format || 'pdf'
@@ -128,24 +133,52 @@ export class CloudinaryService {
   }
 
   /**
-   * Get optimized URL for PDF delivery with public access
+   * Get optimized URL for PDF delivery based on actual Cloudinary behavior
    * @param publicId - Public ID of the file
-   * @returns Optimized public URL
+   * @returns Working URL based on test results
    */
   static getOptimizedUrl(publicId: string): string {
-    // Use the most basic URL format that should work
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
+    // From our test: Cloudinary stores PDFs in image/upload with version
+    // Use the secure_url directly since that's what actually works
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/image/upload/${publicId}`;
   }
 
   /**
-   * Get download URL for PDF with proper filename
-   * @param publicId - Public ID of the file
+   * Get download URL for PDF
+   * @param publicId - Public ID of the file  
    * @param filename - Original filename for download
-   * @returns Download URL with attachment flag
+   * @returns Download URL
    */
   static getDownloadUrl(publicId: string, filename?: string): string {
-    // Use basic raw URL for downloads too
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
+    // Use the same format as optimized URL since that's what works
+    const baseUrl = `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/image/upload`;
+    if (filename) {
+      return `${baseUrl}/fl_attachment:${encodeURIComponent(filename)}/${publicId}`;
+    }
+    return `${baseUrl}/${publicId}`;
+  }
+
+  /**
+   * Extract public ID from Cloudinary URLs
+   * @param url - Full Cloudinary URL
+   * @returns Extracted public ID
+   */
+  static extractPublicId(url: string): string | null {
+    // Handle the format we see in test: /image/upload/v1770095305/test_1770095302516.pdf
+    const patterns = [
+      /\/image\/upload\/v\d+\/([^/]+?)(?:\.pdf)?$/,
+      /\/image\/upload\/([^/]+?)(?:\.pdf)?$/,
+      /\/raw\/upload\/v\d+\/([^/]+?)(?:\.pdf)?$/,
+      /\/raw\/upload\/([^/]+?)(?:\.pdf)?$/
+    ];
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    return null;
   }
 
   /**
@@ -154,8 +187,7 @@ export class CloudinaryService {
    * @returns Direct URL
    */
   static getDirectUrl(publicId: string): string {
-    // Try without any transformations
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/image/upload/${publicId}`;
   }
 
   /**
