@@ -39,19 +39,18 @@ export class CloudinaryService {
         folder: `${CLOUDINARY_CONFIG.folder}/${metadata.branch}/${metadata.semester}/${metadata.subject}`
       });
 
-      // Create form data for upload
+      // Create form data for upload - simplified approach
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
-      formData.append('folder', `${CLOUDINARY_CONFIG.folder}/${metadata.branch}/${metadata.semester}/${metadata.subject}`);
-      formData.append('resource_type', 'raw'); // Important for PDF files
+      formData.append('resource_type', 'raw');
       
-      // Force public access for viewing
-      formData.append('public_id', `${Date.now()}_${file.name.replace(/\.[^/.]+$/, "")}`); // Custom public ID
+      // Use simple public ID without complex folder structure
+      const simplePublicId = `pdf_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      formData.append('public_id', simplePublicId);
       
-      // Add context metadata
-      const context = `title=${metadata.title}|branch=${metadata.branch}|semester=${metadata.semester}|subject=${metadata.subject}`;
-      formData.append('context', context);
+      // Add basic tags for organization
+      formData.append('tags', `apna-sahe,${metadata.branch},${metadata.semester},${metadata.subject}`);
 
       console.log('🌐 CloudinaryService: Making API call to:', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/upload`);
 
@@ -134,8 +133,8 @@ export class CloudinaryService {
    * @returns Optimized public URL
    */
   static getOptimizedUrl(publicId: string): string {
-    // Use simple public delivery format
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/${publicId}`;
+    // Use the most basic URL format that should work
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
   }
 
   /**
@@ -145,8 +144,8 @@ export class CloudinaryService {
    * @returns Download URL with attachment flag
    */
   static getDownloadUrl(publicId: string, filename?: string): string {
-    // Use direct access URL
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/${publicId}`;
+    // Use basic raw URL for downloads too
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
   }
 
   /**
@@ -155,8 +154,8 @@ export class CloudinaryService {
    * @returns Direct URL
    */
   static getDirectUrl(publicId: string): string {
-    // Try auto resource type detection
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/auto/upload/${publicId}`;
+    // Try without any transformations
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
   }
 
   /**
