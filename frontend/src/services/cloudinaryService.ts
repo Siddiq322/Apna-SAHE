@@ -45,8 +45,9 @@ export class CloudinaryService {
       formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
       formData.append('folder', `${CLOUDINARY_CONFIG.folder}/${metadata.branch}/${metadata.semester}/${metadata.subject}`);
       formData.append('resource_type', 'raw'); // Important for PDF files
-      formData.append('access_mode', 'public'); // Ensure public access
-      formData.append('type', 'upload'); // Explicit upload type
+      
+      // Force public access for viewing
+      formData.append('public_id', `${Date.now()}_${file.name.replace(/\.[^/.]+$/, "")}`); // Custom public ID
       
       // Add context metadata
       const context = `title=${metadata.title}|branch=${metadata.branch}|semester=${metadata.semester}|subject=${metadata.subject}`;
@@ -133,8 +134,8 @@ export class CloudinaryService {
    * @returns Optimized public URL
    */
   static getOptimizedUrl(publicId: string): string {
-    // Use raw delivery for PDFs (not image delivery)
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/${publicId}`;
+    // Use simple public delivery format
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/${publicId}`;
   }
 
   /**
@@ -144,13 +145,8 @@ export class CloudinaryService {
    * @returns Download URL with attachment flag
    */
   static getDownloadUrl(publicId: string, filename?: string): string {
-    // Use raw delivery with attachment flag for downloads
-    const baseUrl = `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload`;
-    if (filename) {
-      // Use fl_attachment with filename for proper download
-      return `${baseUrl}/fl_attachment:${encodeURIComponent(filename)}/${publicId}`;
-    }
-    return `${baseUrl}/fl_attachment/${publicId}`;
+    // Use direct access URL
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/${publicId}`;
   }
 
   /**
@@ -159,7 +155,20 @@ export class CloudinaryService {
    * @returns Direct URL
    */
   static getDirectUrl(publicId: string): string {
-    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/raw/upload/v1/${publicId}`;
+    // Try auto resource type detection
+    return `https://res.cloudinary.com/${CLOUDINARY_CONFIG.cloudName}/auto/upload/${publicId}`;
+  }
+
+  /**
+   * Test URL accessibility 
+   */
+  static async testUrl(url: string): Promise<boolean> {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      return response.ok;
+    } catch {
+      return false;
+    }
   }
 
   /**
